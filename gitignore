@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.log
+
+# QGIS / Plugin-specifik
+*.qgs~
+*.qgz~
+*.bak
+*.aux.xml
+*.sqlite
+*.qpj
+
+# Qt Designer / Compiled files
+*.ui.py
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VSCode / PyCharm
+.vscode/
+.idea/
+
+# Virtual environments
+env/
+venv/
+.venv/
+
+# Test artifacts
+coverage/
+.tox/
+.nox/
+.cache/
+
+# Plugin ZIP / upload
+*.zip

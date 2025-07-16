@@ -1,0 +1,86 @@
+[
+  {
+    "dataset_id": "EO:EEA:DAT:HRL:GRA",
+    "capabilities_url": [
+      "https://geoserver.vlcc.geoville.com/geoserver/HRL_GRA/wms?request=GetCapabilities&service=WMS"
+    ],
+    "catalog_url": "https://sdi.eea.europa.eu/catalogue/srv/eng/catalog.search#/search?any=HRL%20Croplands&from=1&to=30",
+    "product": "High Resolution Layer - Grassland",
+    "type": "wms"
+  },
+  {
+    "dataset_id": "EO:EEA:DAT:HRL:CPL",
+    "capabilities_url": [
+      "https://geoserver.vlcc.geoserver/HRL_CPL/wms?request=GetCapabilities&service=WMS"
+    ],
+    "product": "High Resolution Layer - Copernicus Permanent Land",
+    "type": "wms"
+  },
+  {
+    "dataset_id": "EO:EEA:DAT:HRL:WAW_",
+    "capabilities_url": [
+      "https://image.discomap.eea.europa.eu/arcgis/services/GioLandPublic/HRL_WaterWetness_2015/MapServer/WMSServer?request=GetCapabilities&service=WMS"
+    ],
+    "product": "HRL - Water Wetness",
+    "type": "wms"
+  },
+  {
+    "dataset_id": "EO:EEA:DAT:CLMS_HRVPP_VI",
+    "capabilities_url": [
+      "https://phenology.vgt.vito.be/wmts?request=GetCapabilities&service=WMTS"
+    ],
+    "product": "Vegetation Indices, daily, UTM projection",
+    "type": "wmts"
+  },
+  {
+    "dataset_id": "EO:EEA:DAT:CLMS_HRVPP_ST",
+    "capabilities_url": [
+      "https://phenology.vgt.vito.be/wmts?request=GetCapabilities&service=WMTS"
+    ],
+    "product": "Seasonal Trajectories, 10-daily, UTM projection",
+    "type": "wmts"
+  },
+  {
+    "dataset_id": "EO:EEA:DAT:CLMS_HRVPP_ST-LAEA",
+    "capabilities_url": [
+      "https://phenology.vgt.vito.be/wmts?request=GetCapabilities&service=WMTS"
+    ],
+    "product": "Seasonal Trajectories, 10-daily, LAEA projection",
+    "type": "wmts"
+  },
+  {
+    "dataset_id": "EO:EEA:DAT:CLMS_HRVPP_VPP",
+    "capabilities_url": [
+      "https://phenology.vgt.vito.be/wmts?request=GetCapabilities&service=WMTS"
+    ],
+    "product": "Vegetation Phenology and Productivity, yearly, UTM projection",
+    "type": "wmts"
+  },
+  {
+    "dataset_id": "EO:EEA:DAT:CLMS_HRVPP_VPP-LAEA",
+    "capabilities_url": [
+      "https://phenology.vgt.vito.be/wmts?request=GetCapabilities&service=WMTS"
+    ],
+    "product": "Vegetation Phenology and Productivity, yearly, LAEA projection",
+    "type": "wmts"
+  },  
+  {
+    "dataset_id": "EO:MO:DAT:WIND_MED_PHY_HR_L3_MY_012_109:cmems_obs-wind_med_phy_my_l3-s1a-sar-desc-0.01deg_P1D-i_202411",
+    "capabilities_url": [
+      "https://wmts.marine.copernicus.eu/teroWmts/WIND_MED_PHY_HR_L3_MY_012_109/cmems_obs-wind_med_phy_my_l3-s1a-sar-asc-0.01deg_P1D-i_202411?request=GetCapabilities&service=WMTS",
+      "https://wmts.marine.copernicus.eu/teroWmts/WIND_MED_PHY_HR_L3_MY_012_109/cmems_obs-wind_med_phy_my_l3-s1a-sar-desc-0.01deg_P1D-i_202411?request=GetCapabilities&service=WMTS"
+    ],
+    "product": "High-resolution L3 Sea Surface Wind from MY Satellite Measurements over the Mediterranean Sea",
+    "type": "wmts"
+  },
+  {
+    "dataset_id": "EO:MO:DAT:WIND_GLO_PHY_L4_NRT_012_004:cmems_obs-wind_glo_phy_nrt_l4_0.125deg_PT1H_202207",
+    "capabilities_url": [
+      "https://wmts.marine.copernicus.eu/teroWmts/WIND_GLO_PHY_L4_MY_012_006/cmems_obs-wind_glo_phy_my_l4_0.125deg_PT1H_202211?request=GetCapabilities&service=WMTS",
+      "https://wmts.marine.copernicus.eu/teroWmts/WIND_GLO_PHY_L4_MY_012_006/cmems_obs-wind_glo_phy_my_l4_0.25deg_PT1H_202406?request=GetCapabilities&service=WMTS"
+    ],
+    "product": "Global Ocean Hourly Sea Surface Wind and Stress from Scatterometer and Model",
+    "type": "wmts"
+  }
+  
+]
