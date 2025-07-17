@@ -2,6 +2,15 @@
 name=Copernicus Connect
 qgisMinimumVersion=3.0
 version=0.7
+experimental = False
+deprecated = False
+homepage = https://www.copernicus.eu/en
+tracker = https://github.com/copernicus-land/Copernicus-Connect/issues
+repository = https://github.com/copernicus-land/Copernicus-Connect
+category=Data Retrieval
+icon=resources/icon.png
+license=EUPL
+
 author=Mikael Lund
 email=mikael.lund@eea.europa.eu
 description=Easy browse, download, and visualise Copernicus data into your QGIS.
@@ -10,6 +19,3 @@ about=Copernicus Connect provides a graphical interface for discovering, queryin
 [dependencies]
 python_plugins=hda (licensed under Apache Software License 2.0), owslib >= 0.31.0 (licensed under the BSD License)
 
-category=Data Retrieval
-icon=resources/icon.png
-license=GPLv3
