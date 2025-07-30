@@ -8,6 +8,6 @@ It provides a user-friendly interface for discovering and querying datasets from
 
 You can download the plugin as a ZIP file and install it in QGIS via the Plugin Installer:
 
-1. **Download** Go to the project’s “Releases” on GitHub and download the latest ZIP package (e.g., `Copernicus-Connect 07.zip`).
+1. **Download** Go to the project’s “[Releases](https://github.com/copernicus-land/Copernicus-Connect/releases)” on GitHub and download the latest ZIP package (e.g., `Copernicus-Connect 07.zip`).
 2. In QGIS, go to **Plugins ▶ Manage and Install Plugins…**.
 3. Select the **Install from ZIP** tab, browse to the downloaded ZIP file, and click **Install Plugin**.
