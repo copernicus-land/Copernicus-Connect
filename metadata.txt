@@ -1,7 +1,7 @@
 [general]
 name=Copernicus Connect
 qgisMinimumVersion=3.0
-version=0.7
+version=0.8
 experimental = False
 deprecated = False
 homepage = https://www.copernicus.eu/en
