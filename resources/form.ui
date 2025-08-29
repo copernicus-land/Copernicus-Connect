@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>756</width>
+    <width>883</width>
     <height>971</height>
    </rect>
   </property>
@@ -24,7 +24,7 @@
       <item>
        <widget class="QLineEdit" name="txtFilter">
         <property name="placeholderText">
-         <string>e.g. snow+cover (AND), snow|cover (OR), "snow cover" (phrase)</string>
+         <string>e.g. snow+cover (AND), snow|cover (OR), &quot;snow cover&quot; (phrase)</string>
         </property>
        </widget>
       </item>
@@ -156,8 +156,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>712</width>
-              <height>263</height>
+              <width>839</width>
+              <height>252</height>
              </rect>
             </property>
             <layout class="QVBoxLayout" name="formLayout"/>
@@ -167,13 +167,6 @@
            <layout class="QVBoxLayout">
             <item>
              <layout class="QHBoxLayout">
-              <item>
-               <widget class="QPushButton" name="showRequestButton">
-                <property name="text">
-                 <string>Show API REquest(s)</string>
-                </property>
-               </widget>
-              </item>
               <item>
                <widget class="QPushButton" name="requestDataButton">
                 <property name="text">
@@ -189,12 +182,26 @@
                </widget>
               </item>
               <item>
-               <widget class="QLineEdit" name="limitLineEdit"/>
+               <widget class="QLineEdit" name="limitLineEdit">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
               </item>
               <item>
                <widget class="QLabel" name="labelDescription">
                 <property name="text">
                  <string>The maximum number of results to return. Set to 0 to return all results</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="showRequestButton">
+                <property name="text">
+                 <string>Show API REquest(s)</string>
                 </property>
                </widget>
               </item>
@@ -394,8 +401,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>756</width>
-     <height>22</height>
+     <width>883</width>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuSettings">

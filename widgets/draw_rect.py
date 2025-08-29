@@ -48,9 +48,9 @@ class RectangleMapTool(QgsMapToolEmitPoint):
 
         # Transparent fill med blå kant
         symbol = QgsFillSymbol.createSimple({
-            'color': '0,0,255,80',           # fill (blå + alpha)
+            'color': '0,0,255,0',           # fill (blå + alpha)
             'outline_color': '0,0,255,255',  # kant (blå)
-            'outline_width': '0.8'
+            'outline_width': '0.6'
         })
         self.aoi_layer.setRenderer(QgsSingleSymbolRenderer(symbol))
 

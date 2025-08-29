@@ -53,7 +53,8 @@ from io import BytesIO
 from PyQt5 import uic
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QComboBox, QDateTimeEdit, QStyle, QVBoxLayout, QTextEdit, QPushButton, QDialogButtonBox, 
-    QLineEdit, QLabel, QDialog, QMessageBox, QListWidget, QListWidgetItem, QDockWidget, QToolButton, QHBoxLayout, QWidget
+    QLineEdit, QLabel, QDialog, QMessageBox, QListWidget, QListWidgetItem, QDockWidget, QToolButton, QHBoxLayout, QWidget, QSizePolicy
+
 )
 from PyQt5.QtCore import (QObject, QRunnable, pyqtSignal, pyqtSlot, QThreadPool, QDateTime, Qt, QStringListModel, QModelIndex, QTimer)
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -286,13 +287,21 @@ class DownloadWorker(QRunnable):
 
 
 class UiForm(QMainWindow):
-    def __init__(self, client):
-        super().__init__()
+    def __init__(self, client, parent=None):
+        super().__init__(parent)
         uic.loadUi(UI_PATH, self)
+    
+        # do not change the size of the combobox according to its content (title)
+        self.datasetComboBox.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        self.datasetComboBox.setMinimumContentsLength(25)
+
+        self.datasetComboBox.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        
 
         icon_path = os.path.join(os.path.dirname(__file__), 'resources', 'icon.png')
         self.setWindowIcon(QIcon(icon_path))
         self.setWindowTitle("Copernicus Connect")
+        self.bboxWidget = None  # reference til aktiv BoundingBoxWidget
 
         self.loadingOverlay = LoadingOverlay(self.tabWidget) 
 
@@ -687,6 +696,15 @@ class UiForm(QMainWindow):
         if not selected_id:
             self.datasetDetails.clear()
             return
+
+        print("sletter bboxWidget")
+        if getattr(self, "bboxWidget", None) is not None:
+            try:
+                self.bboxWidget.clear_rectangle()
+            except Exception:
+                pass
+            self.bboxWidget = None
+        print("sletter bboxWidget done")
         
         count = self.datasetComboBox.count()
         number = int(self.datasetComboBox.currentIndex()) + 1
@@ -716,10 +734,22 @@ class UiForm(QMainWindow):
         self.loadingOverlay.hide()
 
     def clear_old_widgets(self):
+        # ryd evt. aktiv rektangel før vi fjerner widget
+        print("clear old bbox widgets")
+        if getattr(self, "bboxWidget", None) is not None:
+            try:
+                self.bboxWidget.clear_rectangle()
+            except Exception:
+                pass
+            self.bboxWidget = None 
+        print("clear old bbox widgets")# reference ikke længere gyldig
+
+        print("clear old widgets loop")
         for i in reversed(range(self.formLayout.count())):
-            widget = self.formLayout.itemAt(i).widget()
-            if widget:
-                widget.setParent(None)
+            w = self.formLayout.itemAt(i).widget()
+            if w:
+                w.setParent(None)
+        print("clear old widgets loop done")
 
     def load_datasets(self):
         
@@ -781,7 +811,8 @@ class UiForm(QMainWindow):
         for ds in self.datasets:
             dataset_id = ds.get("dataset_id")
             terms = ds.get("terms", [])
-            source = ds.get("metadata", {}).get("_source", {})
+            #source = ds.get("metadata", {}).get("_source", {})
+            source = ds.get("metadata", {})
 
             title = source.get("datasetTitle") or dataset_id
             abstract = source.get("abstract", "No description available.")
@@ -834,6 +865,7 @@ class UiForm(QMainWindow):
 
         selected = self.datasetComboBox.currentData()
         if not selected:
+            self.bboxWidget = None
             return
 
         self.loadingOverlay.show("🔄 Loading query parameters...")
@@ -851,13 +883,14 @@ class UiForm(QMainWindow):
 
         fields_not_to_show = ["itemsPerPage", "startIndex"]
         required_fields = queryable.get("required", [])
-        self.required_field_names = required_fields  # Used in validation later
+        self.required_field_names = required_fields
 
         notice_label = QLabel("Required fields are marked with a red *")
         notice_label.setStyleSheet("color: #666666; font-style: italic; margin-bottom: 10px;")
         self.formLayout.insertWidget(0, notice_label)
-        
 
+        # antag at der ikke er bbox, indtil vi ser det
+        self.bboxWidget = None
 
         for field in self.fields:
             if field["name"] in fields_not_to_show:
@@ -866,70 +899,53 @@ class UiForm(QMainWindow):
             name = field["name"]
             is_required = name in required_fields
 
-            if is_required:
-                label_text = f'{field["label"]}: <span style="color:red">*</span>'
-            else:
-                label_text = f'{field["label"]}:'
-
             label = QLabel()
-            label.setTextFormat(Qt.RichText)  # aktiverer HTML
-            label.setText(label_text)
+            label.setTextFormat(Qt.RichText)
+            label.setText(f'{field["label"]}: {"<span style=\"color:red\">*</span>" if is_required else ""}')
 
             widget = None
-            layout = QVBoxLayout(self)
 
-            # Multi-selection list (e.g., 'variable')
+            # Multi-selection
             if field.get("items", {}).get("oneOf"):
                 widget = QListWidget()
                 widget.setSelectionMode(QListWidget.MultiSelection)
-
-                # Add empty option at the top
                 empty_item = QListWidgetItem("<None>")
                 empty_item.setData(Qt.UserRole, None)
                 widget.addItem(empty_item)
-
                 for item in field["items"]["oneOf"]:
-                    list_item = QListWidgetItem(item["title"])
-                    list_item.setData(Qt.UserRole, item["const"])
-                    widget.addItem(list_item)
+                    li = QListWidgetItem(item["title"])
+                    li.setData(Qt.UserRole, item["const"])
+                    widget.addItem(li)
 
-            # ComboBox with fixed choices (e.g., 'month', 'year', 'data_format')
+            # Choices (combobox)
             elif field.get("choices"):
                 widget = QComboBox()
-                widget.addItem("<None>", None)  # Add blank choice
-
+                widget.addItem("<None>", None)
                 for item in field["choices"]:
                     title = item.get("title", item.get("const", ""))
                     const = item.get("const", "")
                     widget.addItem(title, const)
-
-                if widget.count() == 2: #blank + 1 value
+                if widget.count() == 2:
                     widget.setCurrentIndex(1)
                     widget.setDisabled(True)
 
-            # Datetime field (e.g., temporal extent)
+            # Datetime
             elif field.get("format") == "date-time":
+                # Behold én widget (NullableDateTimeInput). Du lavede også start/end før,
+                # men hvis skemaet kun forventer ét felt, så brug én.
                 widget = NullableDateTimeInput()
+                # evt. forudfyld:
+                if temp_begin and "start" in name.lower():
+                    widget.line.setText(f"{temp_begin}T00:00:00")
+                if temp_end and "end" in name.lower():
+                    widget.line.setText(f"{temp_end}T23:59:59")
 
-                # Start‐felt
-                start_w = NullableDateTimeInput()
-                if temp_begin:
-                    start_w.line.setText(f"{temp_begin}T00:00:00")
-                layout.addWidget(start_w)
-
-                # Slut‐felt
-                end_w = NullableDateTimeInput()
-                if temp_end:
-                    end_w.line.setText(f"{temp_end}T23:59:59")
-                layout.addWidget(end_w)
-
-                self.setLayout(layout)
-
-            # Bounding box field
+            # BBOX
             elif name.lower() == "bbox":
-                widget = BoundingBoxWidget()
+                widget = BoundingBoxWidget(self)
+                self.bboxWidget = widget  # <- GEM REFERENCE
 
-            # Default single-line text field
+            # Default text
             else:
                 widget = QLineEdit()
                 widget.setPlaceholderText("<Optional>")
@@ -938,7 +954,8 @@ class UiForm(QMainWindow):
             self.formLayout.addWidget(label)
             self.formLayout.addWidget(widget)
 
-        self.loadingOverlay.hide()
+            self.loadingOverlay.hide()
+
 
 
     def validate_required_fields(self):
@@ -1288,33 +1305,77 @@ def read_credentials():
 
     return username, password
 
-def launch_form(parent=None):       
-    
-    username, password = read_credentials()
+from PyQt5.QtWidgets import QApplication, QMessageBox
 
+def launch_form(parent=None):
+    # Ensure there's a QApplication when running outside QGIS
+    app_created = False
+    if QApplication.instance() is None:
+        # Only create an app if we're not inside QGIS
+        try:
+            # running_in_qgis is set in your try/except import block
+            if not running_in_qgis:
+                _ = QApplication([])  # minimal app; main loop started elsewhere if needed
+                app_created = True
+        except NameError:
+            # Fallback if the flag isn't defined for some reason
+            _ = QApplication([])
+            app_created = True
+
+    # 1) Get credentials (show dialog if missing)
+    username, password = read_credentials()
     if not username or not password:
         if not get_user_credentials(parent):
+            # No credentials provided; in standalone we may want to show a gentle info
+            if not running_in_qgis:
+                QMessageBox.information(
+                    parent, "Login cancelled",
+                    "No credentials provided. Cannot open Copernicus Connect."
+                )
             return None
         username, password = read_credentials()
 
+    # 2) Create HDA client and validate token
     try:
         conf = Configuration(user=username, password=password)
         hda_client = Client(config=conf)
-        token = hda_client.token         
-    except Exception as e:
-        QMessageBox.information(parent,"Error", f"Login failed for {username}\n\n Please ensure your credentials are correct.")   
-        username, password = read_credentials()
-        conf = Configuration(user=username, password=password)
-        hda_client = Client(config=conf)
+        _ = hda_client.token  # force login/validation
+    except Exception:
+        QMessageBox.information(
+            parent,
+            "Error",
+            f"Login failed for {username}\n\nPlease ensure your credentials are correct."
+        )
+        return None
 
-    form = UiForm(hda_client)
-    form.resize(800, 1000)
-    form.show()
-    form.load_datasets()
+    # 3) Create and return the form (do not show/resize here)
+    form = UiForm(hda_client, parent=parent)
+
+    # Load datasets early (optional)
+    if hasattr(form, "load_datasets"):
+        try:
+            form.load_datasets()
+        except Exception:
+            pass
+
+    # If we created an app just for a quick test run and want to show the window when
+    # running outside QGIS, you can (optionally) show it here:
+    if app_created and not running_in_qgis:
+        form.show()
 
     return form
 
+
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    form = launch_form()
+    from PyQt5.QtWidgets import QApplication
+    import sys
+
+    app = QApplication.instance() or QApplication(sys.argv)
+
+    form = launch_form()  # parent=None i standalone
+    if form is None:
+        print("Launch cancelled/failed (no credentials or login error).")
+        sys.exit(0)
+
+    form.show()  # <- VIGTIGT i standalone
     sys.exit(app.exec_())
