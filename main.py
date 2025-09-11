@@ -970,7 +970,7 @@ class UiForm(QMainWindow):
 
             label = QLabel()
             label.setTextFormat(Qt.RichText)
-            label.setText(f'{field["label"]}: {"<span style=\"color:red\">*</span>" if is_required else ""}')
+            label.setText(f'{field["label"]}: ' + ('<span style="color:red">*</span>' if is_required else ''))
 
             widget = None
 
