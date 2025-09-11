@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>883</width>
+    <width>720</width>
     <height>971</height>
    </rect>
   </property>
@@ -156,8 +156,8 @@
              <rect>
               <x>0</x>
               <y>0</y>
-              <width>839</width>
-              <height>252</height>
+              <width>676</width>
+              <height>258</height>
              </rect>
             </property>
             <layout class="QVBoxLayout" name="formLayout"/>
@@ -169,6 +169,12 @@
              <layout class="QHBoxLayout">
               <item>
                <widget class="QPushButton" name="requestDataButton">
+                <property name="maximumSize">
+                 <size>
+                  <width>140</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>Request Data</string>
                 </property>
@@ -176,6 +182,18 @@
               </item>
               <item>
                <widget class="QLabel" name="labelLimit">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>120</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
                  <string>Limit (cutoff)</string>
                 </property>
@@ -184,10 +202,16 @@
               <item>
                <widget class="QLineEdit" name="limitLineEdit">
                 <property name="sizePolicy">
-                 <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                 <sizepolicy hsizetype="Minimum" vsizetype="Fixed">
                   <horstretch>0</horstretch>
                   <verstretch>0</verstretch>
                  </sizepolicy>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>70</width>
+                  <height>16777215</height>
+                 </size>
                 </property>
                </widget>
               </item>
@@ -196,12 +220,21 @@
                 <property name="text">
                  <string>The maximum number of results to return. Set to 0 to return all results</string>
                 </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
                </widget>
               </item>
               <item>
                <widget class="QPushButton" name="showRequestButton">
+                <property name="maximumSize">
+                 <size>
+                  <width>180</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
                 <property name="text">
-                 <string>Show API REquest(s)</string>
+                 <string>Show API Request(s)</string>
                 </property>
                </widget>
               </item>
@@ -220,13 +253,13 @@
                <widget class="QPushButton" name="selectAllButton">
                 <property name="minimumSize">
                  <size>
-                  <width>100</width>
+                  <width>0</width>
                   <height>0</height>
                  </size>
                 </property>
                 <property name="maximumSize">
                  <size>
-                  <width>100</width>
+                  <width>120</width>
                   <height>16777215</height>
                  </size>
                 </property>
@@ -359,6 +392,9 @@
                 <property name="text">
                  <string>Filter layers (highlight in text)</string>
                 </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
                </widget>
               </item>
               <item>
@@ -401,8 +437,8 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>883</width>
-     <height>21</height>
+     <width>720</width>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuSettings">

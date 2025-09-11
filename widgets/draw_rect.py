@@ -1,6 +1,7 @@
 from qgis.gui import QgsMapToolEmitPoint, QgsRubberBand
 from PyQt5.QtGui import QColor
 from PyQt5.QtCore import Qt
+from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.core import (
     QgsWkbTypes,
     QgsRectangle,
@@ -13,6 +14,7 @@ from qgis.core import (
     QgsGeometry,
     QgsFillSymbol,
     QgsSingleSymbolRenderer
+
 )
 
 class RectangleMapTool(QgsMapToolEmitPoint):
@@ -75,6 +77,10 @@ class RectangleMapTool(QgsMapToolEmitPoint):
         self.endPoint = self.toMapCoordinates(e.pos())
         self.showRect(self.startPoint, self.endPoint)
 
+    def _info(self, text):
+        parent = self.dlg if getattr(self, "dlg", None) else self.canvas
+        QMessageBox.information(parent, "Copernicus Connect", text)
+
     def canvasReleaseEvent(self, e):
         self.isEmittingPoint = False
         self.rubberBand.hide()
@@ -82,17 +88,22 @@ class RectangleMapTool(QgsMapToolEmitPoint):
         if r is None:
             return
 
-        self.aoi_layer.startEditing()
-        self.aoi_provider.truncate()
-        geom = QgsGeometry.fromRect(r)
-        self.feature = QgsFeature()
-        self.feature.setGeometry(geom)
-        self.aoi_provider.addFeature(self.feature)
-        self.aoi_layer.updateExtents()
-        self.aoi_layer.triggerRepaint()
+        try:
+            self.aoi_layer.startEditing()
+            self.aoi_provider.truncate()
+            geom = QgsGeometry.fromRect(r)
+            self.feature = QgsFeature()
+            self.feature.setGeometry(geom)
+            self.aoi_provider.addFeature(self.feature)
+            self.aoi_layer.updateExtents()
+            self.aoi_layer.triggerRepaint()
 
-        self.last_geometry = geom
-        self.update_bbox_from_geom(geom)
+            self.last_geometry = geom
+            self.update_bbox_from_geom(geom)
+        except:
+            self._info("You must click the 'Draw bounding box' button first (AOI not initialized).")
+            return
+
 
     def showRect(self, startPoint, endPoint):
         self.rubberBand.reset(QgsWkbTypes.PolygonGeometry)
@@ -119,12 +130,14 @@ class RectangleMapTool(QgsMapToolEmitPoint):
         return QgsRectangle(self.startPoint, self.endPoint)
 
     def clear_rectangle(self):
-        """Fjerner AOI-lag helt fra projektet."""
+        """Remove AOI layer (if present) and hide rubber band"""
         if self.aoi_layer and self.aoi_layer.isValid():
             QgsProject.instance().removeMapLayer(self.aoi_layer)
             self.aoi_layer = None
         self.last_geometry = None
         self.rubberBand.hide()
+
+
 
     def on_feature_change(self, *args):
         if not self.aoi_layer or not self.aoi_layer.isValid():
@@ -138,7 +151,7 @@ class RectangleMapTool(QgsMapToolEmitPoint):
 
     def update_bbox_from_geom(self, geom):
         if geom is None or not geom.isGeosValid():
-            print("ikke valid bounding box")
+            print("Not ake valid bounding box")
             return
         rect = geom.boundingBox()
 

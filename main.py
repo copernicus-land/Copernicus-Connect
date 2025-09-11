@@ -57,7 +57,7 @@ from PyQt5.QtWidgets import (
 
 )
 from PyQt5.QtCore import (QObject, QRunnable, pyqtSignal, pyqtSlot, QThreadPool, QDateTime, Qt, QStringListModel, QModelIndex, QTimer)
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeout
 import traceback
 from PyQt5.QtGui import QIntValidator, QStandardItemModel, QStandardItem, QIcon, QPixmap, QClipboard
 from hda import Client, Configuration
@@ -67,6 +67,13 @@ UI_PATH = os.path.join(os.path.dirname(__file__), "resources", "form.ui")
 base_path = os.path.dirname(os.path.abspath(__file__))
 json_path_dataset = os.path.join(base_path, "resources", "dataset.json")
 image_placeholder = os.path.join(base_path, "resources", "placeholder.png")
+
+# Unified default timeout (seconds) for HDA client calls and overall guards
+# Can be overridden with environment variable HDA_TIMEOUT
+try:
+    DEFAULT_CLIENT_TIMEOUT = int(os.environ.get("HDA_TIMEOUT", "60"))
+except Exception:
+    DEFAULT_CLIENT_TIMEOUT = 60
 
 
 
@@ -317,6 +324,7 @@ class UiForm(QMainWindow):
 
         self.client = client
         self.fields = []
+        self.required_field_names = []  # ensure attribute always exists
         self.widgets = {}
         self.dataset_metadata = {}
         self.matches = []
@@ -726,6 +734,19 @@ class UiForm(QMainWindow):
         abstract = self.dataset_metadata.get(selected_id, {}).get("abstract", "No description available.")
         self.datasetDetails.setPlainText(abstract)
         self.clear_old_widgets()
+        # Reset query state so user must load parameters again
+        try:
+            self.fields = []
+            self.required_field_names = []
+        except Exception:
+            self.fields = []
+        try:
+            self.widgets.clear()
+        except Exception:
+            self.widgets = {}
+        self.query = None
+        self.results = []
+        self.match_results = []
         self.fileListWidget.clear()
         self.txt_info.clear()
         self.progressBar.setValue(0)
@@ -770,6 +791,20 @@ class UiForm(QMainWindow):
             response = self.client.get(f"datasets?{query_string}")
         except Exception as e:
             print(f"Initial dataset load failed: {e}")
+            # If it's a timeout or network error, show message and abort so user can retry
+            err_txt = str(e)
+            if isinstance(e, Exception) and (
+                'timed out' in err_txt.lower() or 'timeout' in err_txt.lower() or 'connection' in err_txt.lower()
+            ):
+                self.loadingOverlay.hide()
+                log_message(f"Dataset load error: {e}", "Copernicus Connect", "ERROR")
+                QMessageBox.warning(
+                    self,
+                    "Dataset load failed",
+                    f"Could not load datasets due to a network/server error.\n\n{e}\n\nPlease try again."
+                )
+                return
+
             self.loadingOverlay.hide()
 
             if not get_user_credentials(self):
@@ -779,7 +814,15 @@ class UiForm(QMainWindow):
             username, password = read_credentials()
             conf = Configuration(user=username, password=password)
             self.client = Client(config=conf)
-            #self.client.timeout = 10
+            # Ensure the client doesn't hang indefinitely on requests
+            try:
+                _timeout = DEFAULT_CLIENT_TIMEOUT
+            except NameError:
+                _timeout = 30
+            try:
+                self.client.timeout = _timeout
+            except Exception:
+                pass
 
             try:
                 response = self.client.get(f"datasets?{query_string}")
@@ -870,8 +913,34 @@ class UiForm(QMainWindow):
 
         self.loadingOverlay.show("🔄 Loading query parameters...")
         QApplication.processEvents()
+        try:
+            queryable = self.client.get("dataaccess", "queryable", selected)
+        except Exception as e:
+            # Hide overlay before showing any user dialog
+            self.loadingOverlay.hide()
+            err_text = str(e)
+            log_message(f"Error loading queryable for {selected}: {err_text}", "Copernicus Connect", "ERROR")
 
-        queryable = self.client.get("dataaccess", "queryable", selected)
+            # If it's a timeout-like error, offer Retry/Cancel
+            if (
+                isinstance(e, requests.exceptions.ReadTimeout)
+                or "timed out" in err_text.lower()
+                or "timeout" in err_text.lower()
+            ):
+                choice = QMessageBox.question(
+                    self,
+                    "Timeout",
+                    f"Loading query parameters timed out.\n\n{err_text}\n\nDo you want to try again?",
+                    QMessageBox.Retry | QMessageBox.Cancel,
+                    QMessageBox.Retry,
+                )
+                if choice == QMessageBox.Retry:
+                    return self.show_query_parameters()
+                return
+
+            # Generic failure
+            QMessageBox.critical(self, "Error", f"Could not load query parameters.\n\n{err_text}")
+            return
         self.fields = build_field_definitions(queryable)
 
         metadata = self.dataset_metadata.get(selected, {})
@@ -954,7 +1023,8 @@ class UiForm(QMainWindow):
             self.formLayout.addWidget(label)
             self.formLayout.addWidget(widget)
 
-            self.loadingOverlay.hide()
+        # Hide the overlay once all widgets are added
+        self.loadingOverlay.hide()
 
 
 
@@ -963,6 +1033,15 @@ class UiForm(QMainWindow):
         Checks if all required fields have a value. Returns True if OK, otherwise shows a warning and returns False.
         """
         missing_fields = []
+
+        # Ensure query parameters are loaded
+        if not hasattr(self, "required_field_names") or not self.required_field_names:
+            QMessageBox.information(
+                self,
+                "Parameters not loaded",
+                "Please click 'Show Query Parameters' to load the available fields before requesting data."
+            )
+            return False
 
         for name in self.required_field_names:
             widget = self.widgets.get(name)
@@ -1058,12 +1137,22 @@ class UiForm(QMainWindow):
         return query
 
     def show_request(self):
-        query = self.build_query()
-        if not query:
-            QMessageBox.warning(self, "Error", "Query could not be built.")
-            return
+        # Show a loading overlay while preparing the request preview
+        self.loadingOverlay.show("🔄 Preparing API request…")
+        self.loadingOverlay.raise_()
+        QTimer.singleShot(0, self.loadingOverlay.repaint)
+        QApplication.processEvents()
 
-        json_string = json.dumps(query, indent=2)
+        try:
+            query = self.build_query()
+            if not query:
+                QMessageBox.warning(self, "Error", "Query could not be built.")
+                return
+
+            json_string = json.dumps(query, indent=2)
+        finally:
+            # Hide overlay before showing the dialog so it doesn't cover it
+            self.loadingOverlay.hide()
 
         # Create dialog
         dialog = QDialog(self)
@@ -1071,22 +1160,25 @@ class UiForm(QMainWindow):
         dialog.resize(600, 400)
         layout = QVBoxLayout(dialog)
 
-        # Text area
+        # Text area (editable)
         text_edit = QTextEdit()
         text_edit.setText(json_string)
-        text_edit.setReadOnly(True)
+        text_edit.setReadOnly(False)
         layout.addWidget(text_edit)
 
-        # Buttons: Close + Copy
+        # Buttons: Close + Copy + Run
         buttons = QDialogButtonBox()
         copy_button = QPushButton("Copy to Clipboard")
         close_button = QPushButton("Close")
+        run_button = QPushButton("Run This Query")
         buttons.addButton(copy_button, QDialogButtonBox.ActionRole)
+        buttons.addButton(run_button, QDialogButtonBox.ActionRole)
         buttons.addButton(close_button, QDialogButtonBox.RejectRole)
         layout.addWidget(buttons)
 
         # Actions
         copy_button.clicked.connect(lambda: self.copy_to_clipboard(text_edit.toPlainText()))
+        run_button.clicked.connect(lambda: self.run_query_from_json_text(text_edit.toPlainText(), parent_dialog=dialog))
         close_button.clicked.connect(dialog.reject)
 
         dialog.exec_()
@@ -1096,8 +1188,88 @@ class UiForm(QMainWindow):
         clipboard.setText(text)
         QMessageBox.information(self, "Copied", "Query copied to clipboard.")
 
-    def request_data(self):
-        if self.client._access_token is None:
+    def open_run_query_dialog(self):
+        """Open a dialog to paste raw JSON and execute it as a query."""
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Run Query from JSON")
+        dialog.resize(600, 400)
+        layout = QVBoxLayout(dialog)
+
+        label = QLabel("Paste a JSON query (must include 'dataset_id'):")
+        layout.addWidget(label)
+
+        text_edit = QTextEdit()
+        layout.addWidget(text_edit)
+
+        buttons = QDialogButtonBox()
+        run_button = QPushButton("Run Query")
+        cancel_button = QPushButton("Cancel")
+        buttons.addButton(run_button, QDialogButtonBox.AcceptRole)
+        buttons.addButton(cancel_button, QDialogButtonBox.RejectRole)
+        layout.addWidget(buttons)
+
+        run_button.clicked.connect(lambda: self.run_query_from_json_text(text_edit.toPlainText(), parent_dialog=dialog))
+        cancel_button.clicked.connect(dialog.reject)
+
+        dialog.exec_()
+
+    def _set_current_dataset(self, dataset_id):
+        """Try to select the dataset in the combo by dataset_id. Returns True if found."""
+        if not dataset_id:
+            return False
+        for i in range(self.datasetComboBox.count()):
+            if self.datasetComboBox.itemData(i) == dataset_id:
+                if self.datasetComboBox.currentIndex() != i:
+                    self.datasetComboBox.setCurrentIndex(i)
+                    # Optionally refresh details
+                    try:
+                        self.update_dataset_details()
+                    except Exception:
+                        pass
+                return True
+        return False
+
+    def run_query_from_json_text(self, text, parent_dialog=None):
+        """Parse raw JSON text and run it via send_query()."""
+        try:
+            query = json.loads(text)
+            if not isinstance(query, dict):
+                raise ValueError("JSON must be an object with fields, including 'dataset_id'.")
+        except Exception as e:
+            QMessageBox.critical(self, "Invalid JSON", f"Could not parse JSON query:\n{e}")
+            return
+
+        dataset_id = query.get("dataset_id")
+        if not dataset_id:
+            QMessageBox.warning(self, "Missing dataset_id", "The query must include a 'dataset_id' field.")
+            return
+
+        found = self._set_current_dataset(dataset_id)
+        if not found:
+            QMessageBox.warning(
+                self,
+                "Dataset not loaded",
+                f"Dataset '{dataset_id}' is not in the current list. The request may fail if terms/metadata are missing."
+            )
+
+        # Close the parent dialog (if any) before running to show overlay cleanly
+        if parent_dialog is not None:
+            # Show overlay immediately when the user chooses to run the query
+            self.loadingOverlay.show("🔄 Running query…")
+            self.loadingOverlay.raise_()
+            QTimer.singleShot(0, self.loadingOverlay.repaint)
+            QApplication.processEvents()
+            try:
+                parent_dialog.accept()
+            except Exception:
+                pass
+
+        # Use the helper that bypasses UI validation
+        self.send_query(query)
+
+    # --- Helper methods for request flow ---
+    def _ensure_logged_in(self):
+        if getattr(self.client, "_access_token", None) is None:
             QMessageBox.information(
                 self,
                 "WEkEO log in",
@@ -1105,97 +1277,207 @@ class UiForm(QMainWindow):
                 "Check if username and password are correct.\n\n"
                 "Please click OK to open the login dialog and enter your credentials."
             )
-            self.show_user_settings(self)
+            # Keep existing call style to avoid broader changes
+            try:
+                self.show_user_settings(self)
+            except TypeError:
+                # Fallback to the no-arg signature if defined that way
+                self.show_user_settings()
+            return False
+        return True
+
+    def _resolve_dataset_id(self, query):
+        if isinstance(query, dict) and query.get("dataset_id"):
+            return query["dataset_id"]
+        return self.datasetComboBox.currentData()
+
+    def _ensure_terms_for_dataset(self, dataset_id):
+        try:
+            term = self.dataset_metadata[dataset_id]["terms"][0]
+        except (KeyError, IndexError, TypeError):
+            QMessageBox.warning(self, "Error", "Terms metadata missing.")
+            return False
+
+        result = self.check_term(term)
+        if result is None:
+            # Error already shown to user; stop flow so they can retry
+            return False
+        if result:
+            return True
+
+        QMessageBox.information(
+            self,
+            "Terms and Conditions",
+            "You need to accept the terms and conditions before requesting data.\n\n"
+            f"{term.replace('_', ' ')}\n\n"
+            "Please click OK to open the terms dialog and then try requesting again."
+        )
+        self.open_terms_dialog(term)
+        return False
+
+    def _parse_search_limit(self):
+        try:
+            limit_val = int(self.limitLineEdit.text())
+        except Exception:
+            limit_val = 0
+        return None if limit_val == 0 else limit_val
+
+    def _search_with_timeout(self, query, search_limit, seconds=None):
+        """Run client.search with a hard overall timeout.
+
+        This guards against cases where the HDA client retries/backoffs or polls
+        for too long despite per-request timeouts.
+        """
+        if seconds is None:
+            try:
+                seconds = DEFAULT_CLIENT_TIMEOUT
+            except NameError:
+                seconds = 60
+        # IMPORTANT: Do NOT use a context manager here, since exiting a
+        # ThreadPoolExecutor context performs a blocking shutdown(wait=True).
+        # That would freeze the UI after a timeout. We manage shutdown manually.
+        ex = ThreadPoolExecutor(max_workers=1)
+        fut = ex.submit(self.client.search, query, search_limit)
+        timed_out = False
+        try:
+            return fut.result(timeout=seconds)
+        except FuturesTimeout:
+            timed_out = True
+            try:
+                fut.cancel()
+            except Exception:
+                pass
+            # Do not block the UI waiting for search to finish
+            try:
+                ex.shutdown(wait=False)
+            except Exception:
+                pass
+            raise TimeoutError(f"Search timed out after {seconds} seconds")
+        finally:
+            # If not timed out, we can shut down cleanly and wait for completion
+            if not timed_out:
+                try:
+                    ex.shutdown(wait=True)
+                except Exception:
+                    pass
+
+    def _populate_results_ui(self, search_limit):
+        self.match_results = []
+        for match in self.results:
+            try:
+                feature = match.results[0]
+                self.match_results.append({
+                    "id": feature["id"],
+                    "match": match
+                })
+            except Exception as e:
+                log_message(f"Error handling match: {e}", "Copernicus Connect", "WARNING")
+
+        self.fileListWidget.clear()
+        for item in self.match_results:
+            feature_id = item["id"]
+            size = item["match"].results[0]["properties"].get("size")
+            if isinstance(size, int):
+                size = format_size(size)
+            label = f"{feature_id}\t{size})"
+            self.fileListWidget.addItem(label)
+
+        total_volume = getattr(self.results, "volume", None)
+        if isinstance(total_volume, int):
+            total_volume = format_size(total_volume)
+
+        message = f"Found {len(self.match_results)} results.\nSize: {total_volume}"
+        if search_limit is not None and len(self.match_results) >= search_limit:
+            message += (
+                f"\nThe number of matches has reached the limit of {search_limit}. "
+                "There may be additional matches."
+            )
+        QMessageBox.information(self, "Search complete", message)
+
+    def send_query(self, query):
+        """Public helper: run a provided query dict without UI validation."""
+        return self.request_data(query=query, skip_validation=True)
+
+    def request_data(self, checked=False, query=None, skip_validation=False):
+        """
+        Request data based on current UI or a provided query.
+
+        - If 'query' is provided, it is used directly and UI validation is skipped
+          unless 'skip_validation' is False.
+        - If 'query' is None, the query is built from the current UI widgets.
+        """
+        # 1) Ensure logged in
+        if not self._ensure_logged_in():
             return
 
-        dataset_id = self.datasetComboBox.currentData()
+        # 2) Resolve dataset id from query or UI
+        dataset_id = self._resolve_dataset_id(query)
         if not dataset_id:
             QMessageBox.warning(self, "Error", "Please select a dataset first.")
             return
 
-        if not self.validate_required_fields():
-            return  # Stop if required fields are missing
+        # 3) Validate required fields only if using UI-driven build and not skipping
+        if query is None and not skip_validation:
+            # Ensure parameters are loaded (user clicked 'Show Query Parameters')
+            if not self.fields or not getattr(self, "required_field_names", []):
+                QMessageBox.information(
+                    self,
+                    "Parameters not loaded",
+                    "Please click 'Show Query Parameters' to load the available fields before requesting data."
+                )
+                return
+            if not self.validate_required_fields():
+                return
 
         self.loadingOverlay.show("🔄 Loading requested data...")
         QApplication.processEvents()
 
         try:
-            term = self.dataset_metadata[dataset_id]["terms"][0]
-        except (KeyError, IndexError):
-            QMessageBox.warning(self, "Error", "Terms metadata missing.")
-            self.loadingOverlay.hide()
-            return
+            # 4) Ensure terms accepted for dataset
+            if not self._ensure_terms_for_dataset(dataset_id):
+                return
 
-        if self.check_term(term):
-            print("Term accepted.")
-        else:
-            print("Term not accepted.")
+            # 5) Build or set query
+            if query is None:
+                query = self.build_query()
+            self.query = query
+            if not self.query:
+                return
 
-            QMessageBox.information(
-                self,
-                "Terms and Conditions",
-                "You need to accept the terms and conditions before requesting data.\n\n"
-                f"{term.replace('_', ' ')}\n\n"
-                "Please click OK to open the terms dialog and then try requesting again."
-            )
-            self.open_terms_dialog(term)
-            self.loadingOverlay.hide()
-            return
+            # 6) Execute search (with hard timeout)
+            search_limit = self._parse_search_limit()
+            self.results = self._search_with_timeout(self.query, search_limit)
 
-        query = self.build_query()
-        if not query:
-            self.loadingOverlay.hide()
-            return
-        print(query)
-
-        try:
-            search_limit = int(self.limitLineEdit.text())
-            if search_limit == 0:
-                search_limit = None
-
-            self.results = self.client.search(self.query, search_limit)
-            self.match_results = []
-
-            for match in self.results:
-                try:
-                    feature = match.results[0]
-                    self.match_results.append({
-                        "id": feature["id"],
-                        "match": match
-                    })
-                except Exception as e:
-                    log_message(f"Error handling match: {e}", "Copernicus Connect", "WARNING")
-
-            self.fileListWidget.clear()
-            for item in self.match_results:
-                feature_id = item["id"]
-                size = item["match"].results[0]["properties"].get("size")
-
-                if isinstance(size, int):
-                    size = format_size(size)
-
-                label = f"{feature_id}\t{size})"
-                self.fileListWidget.addItem(label)
-
-            total_volume = self.results.volume
-            if isinstance(total_volume, int):
-                total_volume = format_size(total_volume)
-
-            self.loadingOverlay.hide()
-
-            message = f"Found {len(self.match_results)} results.\nSize: {total_volume}"
-            if search_limit is not None and len(self.match_results) >= search_limit:
-                message += (
-                    f"\nThe number of matches has reached the limit of {search_limit}. "
-                    "There may be additional matches."
-                )
-
-            QMessageBox.information(self, "Search complete", message)
+            # 7) Populate results in UI
+            self._populate_results_ui(search_limit)
 
         except Exception as e:
+            # Ensure overlay is hidden before showing any dialogs
             self.loadingOverlay.hide()
-            log_message(f"Error during search: {e}", "Copernicus Connect", "ERROR")
-            QMessageBox.critical(self, "Search error", str(e))
+
+            err_text = str(e)
+            log_message(f"Error during search: {err_text}", "Copernicus Connect", "ERROR")
+
+            # Specific handling for timeouts: offer Retry/Cancel
+            if isinstance(e, TimeoutError) or "timed out" in err_text.lower():
+                choice = QMessageBox.question(
+                    self,
+                    "Search timed out",
+                    f"The search did not finish within the time limit.\n\n{err_text}\n\nDo you want to try again?",
+                    QMessageBox.Retry | QMessageBox.Cancel,
+                    QMessageBox.Retry,
+                )
+                if choice == QMessageBox.Retry:
+                    # Re-run with the same query; skip UI validation since it's already built
+                    # and terms were already checked in this flow.
+                    return self.request_data(query=self.query if query is None else query, skip_validation=True)
+                return
+
+            # Default error dialog for non-timeout errors
+            QMessageBox.critical(self, "Search error", err_text)
+        finally:
+            # Keep as a safety; already hidden above on error
+            self.loadingOverlay.hide()
 
     
     def get_download_path(self):
@@ -1207,10 +1489,46 @@ class UiForm(QMainWindow):
    
  
     def show_user_settings(self):
-        if get_user_credentials(self):
-            print("Credentials saved.")
-        else:
+        if not get_user_credentials(self):
             print("Dialog canceled.")
+            return
+
+        # Read newly saved credentials
+        username, password = read_credentials()
+        if not username or not password:
+            QMessageBox.warning(self, "Login", "Username or password missing.")
+            return
+
+        # Show a short overlay while logging in
+        self.loadingOverlay.show("🔐 Logging in…")
+        QApplication.processEvents()
+
+        try:
+            conf = Configuration(user=username, password=password)
+            new_client = Client(config=conf)
+            try:
+                _timeout = DEFAULT_CLIENT_TIMEOUT
+            except NameError:
+                _timeout = 30
+            try:
+                new_client.timeout = _timeout
+            except Exception:
+                pass
+            # Force a token retrieval to validate credentials
+            _ = new_client.token
+        except Exception as e:
+            self.loadingOverlay.hide()
+            QMessageBox.critical(self, "Login failed", f"Could not log in with the provided credentials.\n\n{e}")
+            return
+
+        # Swap client and load datasets
+        self.client = new_client
+        self.loadingOverlay.hide()
+        try:
+            self.load_datasets()
+        except Exception:
+            # load_datasets handles its own user feedback and overlay
+            pass
 
     def show_path_settings(self):    
         dialog = PathDialog(self)
@@ -1234,12 +1552,19 @@ class UiForm(QMainWindow):
                 if feature.get("term_id") == term:
                     return feature.get("accepted", False)
 
-            # Hvis ikke fundet
             return False
 
         except Exception as e:
-            print(f"Eror getting terms: {e}")
-            return False
+            log_message(f"Error getting terms: {e}", "Copernicus Connect", "ERROR")
+            try:
+                QMessageBox.warning(
+                    self,
+                    "Terms check failed",
+                    f"Could not verify terms due to a network/server error.\n\n{e}\n\nPlease try again."
+                )
+            except Exception:
+                pass
+            return None
 
 
     def download_selected_files(self):
@@ -1322,37 +1647,62 @@ def launch_form(parent=None):
             _ = QApplication([])
             app_created = True
 
-    # 1) Get credentials (show dialog if missing)
+    # 1) Create client with stored creds (empty allowed) and try validate
     username, password = read_credentials()
-    if not username or not password:
-        if not get_user_credentials(parent):
-            # No credentials provided; in standalone we may want to show a gentle info
-            if not running_in_qgis:
-                QMessageBox.information(
-                    parent, "Login cancelled",
-                    "No credentials provided. Cannot open Copernicus Connect."
-                )
-            return None
-        username, password = read_credentials()
+    username = username or ""
+    password = password or ""
 
-    # 2) Create HDA client and validate token
+    conf = Configuration(user=username, password=password)
+    hda_client = Client(config=conf)
     try:
-        conf = Configuration(user=username, password=password)
-        hda_client = Client(config=conf)
-        _ = hda_client.token  # force login/validation
+        _timeout = DEFAULT_CLIENT_TIMEOUT
+    except NameError:
+        _timeout = 30
+    try:
+        hda_client.timeout = _timeout
     except Exception:
-        QMessageBox.information(
-            parent,
-            "Error",
-            f"Login failed for {username}\n\nPlease ensure your credentials are correct."
-        )
-        return None
+        pass
+
+    logged_in = False
+    # If creds exist, try to validate; otherwise prompt
+    need_prompt = not (username and password)
+    if not need_prompt:
+        try:
+            _ = hda_client.token
+            logged_in = True
+        except Exception:
+            need_prompt = True
+
+    if need_prompt:
+        # Ask for credentials but do not block plugin launch if cancelled
+        if get_user_credentials(parent):
+            # Read and try again
+            new_user, new_pass = read_credentials()
+            if new_user and new_pass:
+                try:
+                    new_conf = Configuration(user=new_user, password=new_pass)
+                    new_client = Client(config=new_conf)
+                    try:
+                        new_client.timeout = _timeout
+                    except Exception:
+                        pass
+                    _ = new_client.token
+                    hda_client = new_client
+                    logged_in = True
+                except Exception:
+                    # Keep plugin open; user can retry later from menu
+                    QMessageBox.information(
+                        parent,
+                        "Login failed",
+                        "Could not log in with the provided credentials. You can try again from the User menu."
+                    )
+        # else: user cancelled — proceed without login
 
     # 3) Create and return the form (do not show/resize here)
     form = UiForm(hda_client, parent=parent)
 
-    # Load datasets early (optional)
-    if hasattr(form, "load_datasets"):
+    # Load datasets early only if we are logged in
+    if hasattr(form, "load_datasets") and logged_in:
         try:
             form.load_datasets()
         except Exception:
