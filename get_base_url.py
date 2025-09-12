@@ -39,6 +39,12 @@ class GetBaseURL:
             if urls:
                 service_type = "wmts" if "wmts" in urls[0].lower() else "wms"
 
+        # Final fallback: try to infer WMS endpoints directly from JSON (e.g., Sentinel-1 JSON structures)
+        if not urls:
+            urls = self.extract_wms_urls_from_json(data)
+            if urls:
+                service_type = "wms"
+
         if urls:
             return {
                 "dataset_id": dataset_id,
@@ -155,3 +161,84 @@ class GetBaseURL:
         raw_metadata = metadata.get("rawMetadata", "")
         matches = re.findall(r"<gmd:URL>(.*?)</gmd:URL>", raw_metadata)
         return [url.replace("&amp;", "&") for url in matches if "GetCapabilities" in url]
+
+    # ----------------------
+    # WMS extraction helpers
+    # ----------------------
+    def _iter_strings(self, obj):
+        if isinstance(obj, dict):
+            for v in obj.values():
+                yield from self._iter_strings(v)
+        elif isinstance(obj, list):
+            for v in obj:
+                yield from self._iter_strings(v)
+        elif isinstance(obj, str):
+            yield obj
+
+    def _normalize_to_capabilities(self, url, service_type="WMS"):
+        parsed = urlparse(url)
+        base = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+        query = (parsed.query or "").lower()
+        if "request=getcapabilities" in query and f"service={service_type.lower()}" in query:
+            return url
+
+        # Build canonical GetCapabilities URL
+        sep = "&" if parsed.query else "?"
+        return f"{base}{sep}request=GetCapabilities&service={service_type.upper()}"
+
+    def _transform_arcgis_rest_to_wms(self, url):
+        # Generic ArcGIS REST -> WMS endpoint conversion, without touching non-ArcGIS URLs
+        parsed = urlparse(url)
+        path = parsed.path
+        if "/arcgis/rest/services/" not in path:
+            return url
+        parts = path.strip("/").split("/")
+        try:
+            rest_index = parts.index("rest")
+            # Remove 'rest'
+            parts.pop(rest_index)
+        except ValueError:
+            pass
+
+        # Ensure WMSServer suffix exists for MapServer/ImageServer endpoints
+        if parts[-1].lower() in ["mapserver", "imageserver"]:
+            parts.append("WMSServer")
+
+        new_path = "/" + "/".join(parts)
+        return urlunparse((parsed.scheme, parsed.netloc, new_path, '', '', ''))
+
+    def extract_wms_urls_from_json(self, data):
+        candidates = set()
+        for s in self._iter_strings(data):
+            s = s.strip()
+            if not s or not (s.startswith("http://") or s.startswith("https://")):
+                continue
+
+            url_lower = s.lower()
+
+            # Skip WMTS endpoints here; they are handled elsewhere
+            if "wmts" in url_lower:
+                continue
+
+            # Strong signals of WMS
+            looks_wms = (
+                "service=wms" in url_lower or
+                "/wms" in url_lower or
+                "wmserver" in url_lower or
+                "ows" in url_lower or
+                "wmss" in url_lower  # arcgis WMSServer
+            )
+
+            if not looks_wms:
+                continue
+
+            # Normalize some known ArcGIS REST forms
+            if "/arcgis/rest/services/" in url_lower:
+                s = self._transform_arcgis_rest_to_wms(s)
+
+            # Build GetCapabilities URL if needed
+            norm = self._normalize_to_capabilities(s, service_type="WMS")
+            candidates.add(norm)
+
+        # Filter duplicates and return stable order
+        return sorted(candidates)
