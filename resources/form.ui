@@ -157,7 +157,7 @@
               <x>0</x>
               <y>0</y>
               <width>676</width>
-              <height>258</height>
+              <height>232</height>
              </rect>
             </property>
             <layout class="QVBoxLayout" name="formLayout"/>
@@ -248,7 +248,7 @@
              </widget>
             </item>
             <item>
-             <layout class="QHBoxLayout" name="buttonLayout">
+             <layout class="QHBoxLayout" name="LayoutSelect">
               <item>
                <widget class="QPushButton" name="selectAllButton">
                 <property name="minimumSize">
@@ -287,6 +287,44 @@
                 </property>
                </widget>
               </item>
+              <item>
+               <widget class="QLabel" name="labelSelect">
+                <property name="text">
+                 <string>Select from:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="txtFrom"/>
+              </item>
+              <item>
+               <widget class="QLabel" name="labelAnd">
+                <property name="text">
+                 <string>to</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="txtTo"/>
+              </item>
+              <item>
+               <widget class="QLabel" name="label">
+                <property name="text">
+                 <string>inclusive</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="selectButton">
+                <property name="text">
+                 <string>Select</string>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout class="QHBoxLayout" name="buttonLayout">
               <item>
                <widget class="QPushButton" name="downloadButton">
                 <property name="sizePolicy">
@@ -390,7 +428,7 @@
               <item>
                <widget class="QLabel" name="labelSearchWMS">
                 <property name="text">
-                 <string>Filter layers (highlight in text)</string>
+                 <string>Filter layers</string>
                 </property>
                 <property name="wordWrap">
                  <bool>true</bool>
@@ -438,7 +476,7 @@
      <x>0</x>
      <y>0</y>
      <width>720</width>
-     <height>22</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuSettings">
@@ -451,6 +489,7 @@
     <addaction name="actionLimit"/>
    </widget>
    <addaction name="menuSettings"/>
+   <addaction name="actionWiki"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
   <action name="actionUser">
@@ -471,6 +510,11 @@
   <action name="actionLimit">
    <property name="text">
     <string>Set limit in search</string>
+   </property>
+  </action>
+  <action name="actionWiki">
+   <property name="text">
+    <string>Manual</string>
    </property>
   </action>
  </widget>

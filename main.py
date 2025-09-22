@@ -20,6 +20,8 @@ try:
             "SUCCESS": Qgis.Success,
         }.get(level_str, Qgis.Info)
         QgsMessageLog.logMessage(str(msg), tag, qgis_level)
+        # Always print to terminal as well
+        print(f"[{level_str}] {tag}: {msg}")
 except ImportError as e:    
     from user_dialog import UserDialog
     from path_dialog import PathDialog
@@ -340,6 +342,7 @@ class UiForm(QMainWindow):
         self.showRequestButton.setIcon(self.style().standardIcon(QStyle.SP_FileDialogDetailedView))
         self.requestDataButton.setIcon(self.style().standardIcon(QStyle.SP_FileDialogContentsView))
         self.selectAllButton.setIcon(QIcon(self.resource_path("icon", "select_all.ico")))
+        self.selectButton.setIcon(QIcon(self.resource_path("icon", "select_all.ico")))
         self.clearAllButton.setIcon(QIcon(self.resource_path("icon", "clear_all.ico")))
         self.btn_open_file_location.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
         self.btn_download_location.setIcon(self.style().standardIcon(QStyle.SP_DialogOpenButton))
@@ -356,6 +359,7 @@ class UiForm(QMainWindow):
         self.actionPaths.triggered.connect(self.show_path_settings)
         self.actionLimit.triggered.connect(self.open_limit_dialog)
         self.actionTerms.triggered.connect(self.open_terms_dialog)
+        self.actionWiki.triggered.connect(self.open_wiki_page)
         self.load_datasetsButton.clicked.connect(self.load_datasets)
         self.txtFilter.returnPressed.connect(self.load_datasets)
         self.datasetComboBox.currentIndexChanged.connect(self.update_dataset_details)
@@ -367,6 +371,7 @@ class UiForm(QMainWindow):
         self.downloadButton.clicked.connect(self.download_selected_files)
         self.selectAllButton.clicked.connect(self.select_all_items)
         self.clearAllButton.clicked.connect(self.clear_selection)
+        self.selectButton.clicked.connect(self.select_interval)
         self.btn_download_location.clicked.connect(self.show_path_settings)
         self.btn_open_file_location.clicked.connect(self.open_file_location)
         self.cancelButton.clicked.connect(self.cancel_download)
@@ -382,6 +387,12 @@ class UiForm(QMainWindow):
         self.treeViewWMS.doubleClicked.connect(self.handle_add_to_layers)
 
    
+    def open_wiki_page(self):
+        try:
+            webbrowser.open('https://github.com/copernicus-land/Copernicus-Connect/wiki')
+        except Exception as exc:
+            QMessageBox.warning(self, 'Copernicus Connect', f'Could not open manual: {exc}')
+
     def resource_path(self, *paths):
         return os.path.join(base_path, "resources", *paths)
 
@@ -651,8 +662,8 @@ class UiForm(QMainWindow):
                 QMessageBox.critical(None, "Layer addition failed", f"{msg}\n\nURI:\n{uri}")
 
         else:
-            print("🧪 Simulering uden QGIS:")
-            print(f"Navn: {layers_str}")
+            print("🧪 Simulation without QGIS:")
+            print(f"Name: {layers_str}")
             print(f"URI: {uri}")
             
     
@@ -660,10 +671,76 @@ class UiForm(QMainWindow):
 
     
     def select_all_items(self):
-        self.fileListWidget.selectAll()
+        count = self.fileListWidget.count()
+        if count > 100:
+            QMessageBox.warning(self, "Too many files", "WEkEO only supports 100 downloads per hour. Only the first 100 files will be selected.")
+            self.fileListWidget.clearSelection()
+            for i in range(100):
+                item = self.fileListWidget.item(i)
+                item.setSelected(True)
+        else:
+            self.fileListWidget.selectAll()
 
     def clear_selection(self):
         self.fileListWidget.clearSelection()
+
+    def select_interval(self):
+        """
+        Select a range of files in fileListWidget based on txtFrom and txtTo.
+        txtFrom and txtTo should be 1-based indices (first file = 1).
+        """
+        try:
+            from_text = self.txtFrom.text().strip()
+            to_text = self.txtTo.text().strip()
+            if not from_text or not to_text:
+                QMessageBox.warning(self, "Missing interval", "Please enter both 'From' and 'To' values.")
+                return
+            from_idx = int(from_text) - 1
+            to_idx = int(to_text) - 1
+            count = self.fileListWidget.count()
+            if from_idx < 0 or to_idx < 0 or from_idx >= count or to_idx >= count:
+                QMessageBox.warning(self, "Invalid interval", f"Interval must be between 1 and {count}.")
+                return
+            if from_idx > to_idx:
+                from_idx, to_idx = to_idx, from_idx
+
+            # Calculate dynamic max downloads left
+            import datetime
+            pathfile = Path.home() / ".hda_download_status"
+            now = datetime.datetime.now()
+            one_hour_ago = now - datetime.timedelta(hours=1)
+            downloads_last_hour = 0
+            if pathfile.is_file():
+                try:
+                    with open(pathfile, 'r') as f:
+                        for line in f:
+                            parts = line.strip().split()
+                            if len(parts) == 2:
+                                ts_str, count_str = parts
+                                try:
+                                    ts = datetime.datetime.fromisoformat(ts_str)
+                                    count = int(count_str)
+                                    if ts > one_hour_ago:
+                                        downloads_last_hour += count
+                                except Exception:
+                                    continue
+                except Exception:
+                    pass
+            max_allowed = max(0, 100 - downloads_last_hour)
+            interval_size = to_idx - from_idx + 1
+            if interval_size > max_allowed:
+                QMessageBox.warning(
+                    self,
+                    "Interval too large",
+                    f"It is not allowed to select more than {max_allowed} files at once. WEkEO only supports 100 downloads per hour. You have already downloaded {downloads_last_hour} files in the last hour."
+                )
+                return
+            self.fileListWidget.clearSelection()
+            for i in range(from_idx, to_idx + 1):
+                item = self.fileListWidget.item(i)
+                item.setSelected(True)
+        except Exception as e:
+            QMessageBox.warning(self, "Interval selection error", f"An error occurred:\n{e}")
 
     def cancel_download(self):
         if hasattr(self, "worker") and self.worker:
@@ -705,14 +782,12 @@ class UiForm(QMainWindow):
             self.datasetDetails.clear()
             return
 
-        print("sletter bboxWidget")
         if getattr(self, "bboxWidget", None) is not None:
             try:
                 self.bboxWidget.clear_rectangle()
             except Exception:
                 pass
             self.bboxWidget = None
-        print("sletter bboxWidget done")
         
         count = self.datasetComboBox.count()
         number = int(self.datasetComboBox.currentIndex()) + 1
@@ -756,21 +831,17 @@ class UiForm(QMainWindow):
 
     def clear_old_widgets(self):
         # ryd evt. aktiv rektangel før vi fjerner widget
-        print("clear old bbox widgets")
         if getattr(self, "bboxWidget", None) is not None:
             try:
                 self.bboxWidget.clear_rectangle()
             except Exception:
                 pass
             self.bboxWidget = None 
-        print("clear old bbox widgets")# reference ikke længere gyldig
 
-        print("clear old widgets loop")
         for i in reversed(range(self.formLayout.count())):
             w = self.formLayout.itemAt(i).widget()
             if w:
                 w.setParent(None)
-        print("clear old widgets loop done")
 
     def load_datasets(self):
         
@@ -1565,6 +1636,43 @@ class UiForm(QMainWindow):
             except Exception:
                 pass
             return None
+        
+    def save_download_status(self, selected_ids):
+        """
+        Save the count and timestamp of downloads to a file, keeping only entries from the last hour.
+        Each line: <timestamp_iso> <count>
+        """
+        import datetime
+        pathfile = Path.home() / ".hda_download_status"
+        now = datetime.datetime.now()
+        one_hour_ago = now - datetime.timedelta(hours=1)
+        entries = []
+        # Read existing entries
+        if pathfile.is_file():
+            try:
+                with open(pathfile, 'r') as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) == 2:
+                            ts_str, count_str = parts
+                            try:
+                                ts = datetime.datetime.fromisoformat(ts_str)
+                                count = int(count_str)
+                                if ts > one_hour_ago:
+                                    entries.append((ts, count))
+                            except Exception:
+                                continue
+            except Exception as e:
+                log_message(f"Could not read download status: {e}", "Copernicus Connect", "WARNING")
+        # Add new entry
+        entries.append((now, len(selected_ids)))
+        # Write back only entries within last hour
+        try:
+            with open(pathfile, 'w') as f:
+                for ts, count in entries:
+                    f.write(f"{ts.isoformat()} {count}\n")
+        except Exception as e:
+            log_message(f"Could not save download status: {e}", "Copernicus Connect", "WARNING")
 
 
     def download_selected_files(self):
@@ -1593,12 +1701,16 @@ class UiForm(QMainWindow):
         self.progressBar.setValue(0)
         self.statusLabel.setText("Status: Starting download...")
 
+        
+
         try:
             self.worker = DownloadWorker(self.results, self.client, self.query, selected_ids, out_dir)
             self.worker.signals.progress.connect(self.progressBar.setValue)
             self.worker.signals.status.connect(lambda msg: self.statusLabel.setText(f"Status: {msg}"))
             self.worker.signals.error.connect(lambda err: QMessageBox.warning(self, "Error", err))
             self.worker.signals.finished.connect(self.download_finished)      
+
+            self.save_download_status(selected_ids)
 
             QThreadPool.globalInstance().start(self.worker)
         except Exception as e:
