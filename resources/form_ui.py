@@ -27,7 +27,7 @@ class Ui_UIForm(object):
     def setupUi(self, UIForm):
         if not UIForm.objectName():
             UIForm.setObjectName(u"UIForm")
-        UIForm.resize(883, 971)
+        UIForm.resize(720, 971)
         self.actionUser = QAction(UIForm)
         self.actionUser.setObjectName(u"actionUser")
         self.actionTerms = QAction(UIForm)
@@ -36,6 +36,8 @@ class Ui_UIForm(object):
         self.actionPaths.setObjectName(u"actionPaths")
         self.actionLimit = QAction(UIForm)
         self.actionLimit.setObjectName(u"actionLimit")
+        self.actionWiki = QAction(UIForm)
+        self.actionWiki.setObjectName(u"actionWiki")
         self.centralwidget = QWidget(UIForm)
         self.centralwidget.setObjectName(u"centralwidget")
         self.verticalLayout = QVBoxLayout(self.centralwidget)
@@ -140,7 +142,7 @@ class Ui_UIForm(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollWidget = QWidget()
         self.scrollWidget.setObjectName(u"scrollWidget")
-        self.scrollWidget.setGeometry(QRect(0, 0, 839, 252))
+        self.scrollWidget.setGeometry(QRect(0, 0, 676, 232))
         self.formLayout = QVBoxLayout(self.scrollWidget)
         self.formLayout.setObjectName(u"formLayout")
         self.scrollArea.setWidget(self.scrollWidget)
@@ -154,28 +156,38 @@ class Ui_UIForm(object):
         self.hboxLayout.setObjectName(u"hboxLayout")
         self.requestDataButton = QPushButton(self.searchControlsWrapper)
         self.requestDataButton.setObjectName(u"requestDataButton")
+        self.requestDataButton.setMaximumSize(QSize(140, 16777215))
 
         self.hboxLayout.addWidget(self.requestDataButton)
 
         self.labelLimit = QLabel(self.searchControlsWrapper)
         self.labelLimit.setObjectName(u"labelLimit")
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        sizePolicy3.setHorizontalStretch(0)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.labelLimit.sizePolicy().hasHeightForWidth())
+        self.labelLimit.setSizePolicy(sizePolicy3)
+        self.labelLimit.setMaximumSize(QSize(120, 16777215))
 
         self.hboxLayout.addWidget(self.labelLimit)
 
         self.limitLineEdit = QLineEdit(self.searchControlsWrapper)
         self.limitLineEdit.setObjectName(u"limitLineEdit")
-        sizePolicy.setHeightForWidth(self.limitLineEdit.sizePolicy().hasHeightForWidth())
-        self.limitLineEdit.setSizePolicy(sizePolicy)
+        sizePolicy3.setHeightForWidth(self.limitLineEdit.sizePolicy().hasHeightForWidth())
+        self.limitLineEdit.setSizePolicy(sizePolicy3)
+        self.limitLineEdit.setMaximumSize(QSize(70, 16777215))
 
         self.hboxLayout.addWidget(self.limitLineEdit)
 
         self.labelDescription = QLabel(self.searchControlsWrapper)
         self.labelDescription.setObjectName(u"labelDescription")
+        self.labelDescription.setWordWrap(True)
 
         self.hboxLayout.addWidget(self.labelDescription)
 
         self.showRequestButton = QPushButton(self.searchControlsWrapper)
         self.showRequestButton.setObjectName(u"showRequestButton")
+        self.showRequestButton.setMaximumSize(QSize(180, 16777215))
 
         self.hboxLayout.addWidget(self.showRequestButton)
 
@@ -188,29 +200,64 @@ class Ui_UIForm(object):
 
         self.vboxLayout.addWidget(self.fileListWidget)
 
-        self.buttonLayout = QHBoxLayout()
-        self.buttonLayout.setObjectName(u"buttonLayout")
+        self.LayoutSelect = QHBoxLayout()
+        self.LayoutSelect.setObjectName(u"LayoutSelect")
         self.selectAllButton = QPushButton(self.searchControlsWrapper)
         self.selectAllButton.setObjectName(u"selectAllButton")
-        self.selectAllButton.setMinimumSize(QSize(100, 0))
-        self.selectAllButton.setMaximumSize(QSize(100, 16777215))
+        self.selectAllButton.setMinimumSize(QSize(0, 0))
+        self.selectAllButton.setMaximumSize(QSize(120, 16777215))
 
-        self.buttonLayout.addWidget(self.selectAllButton)
+        self.LayoutSelect.addWidget(self.selectAllButton)
 
         self.clearAllButton = QPushButton(self.searchControlsWrapper)
         self.clearAllButton.setObjectName(u"clearAllButton")
         self.clearAllButton.setMinimumSize(QSize(120, 0))
         self.clearAllButton.setMaximumSize(QSize(120, 16777215))
 
-        self.buttonLayout.addWidget(self.clearAllButton)
+        self.LayoutSelect.addWidget(self.clearAllButton)
 
+        self.labelSelect = QLabel(self.searchControlsWrapper)
+        self.labelSelect.setObjectName(u"labelSelect")
+
+        self.LayoutSelect.addWidget(self.labelSelect)
+
+        self.txtFrom = QLineEdit(self.searchControlsWrapper)
+        self.txtFrom.setObjectName(u"txtFrom")
+
+        self.LayoutSelect.addWidget(self.txtFrom)
+
+        self.labelAnd = QLabel(self.searchControlsWrapper)
+        self.labelAnd.setObjectName(u"labelAnd")
+
+        self.LayoutSelect.addWidget(self.labelAnd)
+
+        self.txtTo = QLineEdit(self.searchControlsWrapper)
+        self.txtTo.setObjectName(u"txtTo")
+
+        self.LayoutSelect.addWidget(self.txtTo)
+
+        self.label = QLabel(self.searchControlsWrapper)
+        self.label.setObjectName(u"label")
+
+        self.LayoutSelect.addWidget(self.label)
+
+        self.selectButton = QPushButton(self.searchControlsWrapper)
+        self.selectButton.setObjectName(u"selectButton")
+
+        self.LayoutSelect.addWidget(self.selectButton)
+
+
+        self.vboxLayout.addLayout(self.LayoutSelect)
+
+        self.buttonLayout = QHBoxLayout()
+        self.buttonLayout.setObjectName(u"buttonLayout")
         self.downloadButton = QPushButton(self.searchControlsWrapper)
         self.downloadButton.setObjectName(u"downloadButton")
-        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
-        sizePolicy3.setHorizontalStretch(1)
-        sizePolicy3.setVerticalStretch(0)
-        sizePolicy3.setHeightForWidth(self.downloadButton.sizePolicy().hasHeightForWidth())
-        self.downloadButton.setSizePolicy(sizePolicy3)
+        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        sizePolicy4.setHorizontalStretch(1)
+        sizePolicy4.setVerticalStretch(0)
+        sizePolicy4.setHeightForWidth(self.downloadButton.sizePolicy().hasHeightForWidth())
+        self.downloadButton.setSizePolicy(sizePolicy4)
         self.downloadButton.setMaximumSize(QSize(150, 16777215))
 
         self.buttonLayout.addWidget(self.downloadButton)
@@ -267,6 +314,7 @@ class Ui_UIForm(object):
         self.hboxLayout1.setObjectName(u"hboxLayout1")
         self.labelSearchWMS = QLabel(self.tab2)
         self.labelSearchWMS.setObjectName(u"labelSearchWMS")
+        self.labelSearchWMS.setWordWrap(True)
 
         self.hboxLayout1.addWidget(self.labelSearchWMS)
 
@@ -309,7 +357,7 @@ class Ui_UIForm(object):
         UIForm.setCentralWidget(self.centralwidget)
         self.menuBar = QMenuBar(UIForm)
         self.menuBar.setObjectName(u"menuBar")
-        self.menuBar.setGeometry(QRect(0, 0, 883, 21))
+        self.menuBar.setGeometry(QRect(0, 0, 720, 21))
         self.menuSettings = QMenu(self.menuBar)
         self.menuSettings.setObjectName(u"menuSettings")
         UIForm.setMenuBar(self.menuBar)
@@ -318,6 +366,7 @@ class Ui_UIForm(object):
         UIForm.setStatusBar(self.statusBar)
 
         self.menuBar.addAction(self.menuSettings.menuAction())
+        self.menuBar.addAction(self.actionWiki)
         self.menuSettings.addAction(self.actionUser)
         self.menuSettings.addAction(self.actionTerms)
         self.menuSettings.addAction(self.actionPaths)
@@ -336,6 +385,7 @@ class Ui_UIForm(object):
         self.actionTerms.setText(QCoreApplication.translate("UIForm", u"Terms and Conditions", None))
         self.actionPaths.setText(QCoreApplication.translate("UIForm", u"Paths", None))
         self.actionLimit.setText(QCoreApplication.translate("UIForm", u"Set limit in search", None))
+        self.actionWiki.setText(QCoreApplication.translate("UIForm", u"Manual", None))
         self.lblFilter.setText(QCoreApplication.translate("UIForm", u"Filter:", None))
         self.txtFilter.setPlaceholderText(QCoreApplication.translate("UIForm", u"e.g. snow+cover (AND), snow|cover (OR), \"snow cover\" (phrase)", None))
         self.load_datasetsButton.setText(QCoreApplication.translate("UIForm", u"Update", None))
@@ -345,16 +395,20 @@ class Ui_UIForm(object):
         self.requestDataButton.setText(QCoreApplication.translate("UIForm", u"Request Data", None))
         self.labelLimit.setText(QCoreApplication.translate("UIForm", u"Limit (cutoff)", None))
         self.labelDescription.setText(QCoreApplication.translate("UIForm", u"The maximum number of results to return. Set to 0 to return all results", None))
-        self.showRequestButton.setText(QCoreApplication.translate("UIForm", u"Show API REquest(s)", None))
+        self.showRequestButton.setText(QCoreApplication.translate("UIForm", u"Show API Request(s)", None))
         self.selectAllButton.setText(QCoreApplication.translate("UIForm", u"Select All", None))
         self.clearAllButton.setText(QCoreApplication.translate("UIForm", u"Deselect All", None))
+        self.labelSelect.setText(QCoreApplication.translate("UIForm", u"Select from:", None))
+        self.labelAnd.setText(QCoreApplication.translate("UIForm", u"to", None))
+        self.label.setText(QCoreApplication.translate("UIForm", u"inclusive", None))
+        self.selectButton.setText(QCoreApplication.translate("UIForm", u"Select", None))
         self.downloadButton.setText(QCoreApplication.translate("UIForm", u"Download", None))
         self.btn_download_location.setText(QCoreApplication.translate("UIForm", u"Choose Folder", None))
         self.btn_open_file_location.setText(QCoreApplication.translate("UIForm", u"Open Folder", None))
         self.cancelButton.setText(QCoreApplication.translate("UIForm", u"Cancel", None))
         self.statusLabel.setText(QCoreApplication.translate("UIForm", u"Status: Klar", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab1), QCoreApplication.translate("UIForm", u"Datasets", None))
-        self.labelSearchWMS.setText(QCoreApplication.translate("UIForm", u"Filter layers (highlight in text)", None))
+        self.labelSearchWMS.setText(QCoreApplication.translate("UIForm", u"Filter layers", None))
         self.addToLayersButton.setText(QCoreApplication.translate("UIForm", u"Add to Layers", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab2), QCoreApplication.translate("UIForm", u"WMS/WMTS", None))
         self.menuSettings.setTitle(QCoreApplication.translate("UIForm", u"Settings", None))

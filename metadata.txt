@@ -1,7 +1,7 @@
 [general]
 name=Copernicus Connect
 qgisMinimumVersion=3.0
-version=0.9
+version=0.10
 experimental = False
 deprecated = False
 homepage = https://land.copernicus.eu
@@ -17,6 +17,14 @@ description=Easy browse, download, and visualise Copernicus data into your QGIS.
 about=Copernicus Connect provides a graphical interface for discovering, querying, and downloading datasets from the WEkEO platform via the Harmonized Data Access (HDA) API. It also enables integration of WMS and WMTS services into QGIS.
    
     The plugin, install requires Python packages: hda (Apache 2.0), owslib>=0.31.0 (BSD). If something fails, see the readme <a href="https://github.com/copernicus-land/Copernicus-Connect" target="_blank">plugin-guide</a>
+
+
+changelog: version 0.10
+	• Fixed an issue where existing WMS layers for Sentinel were not displayed
+	• Added a direct link to the manual on the GitHub Wiki
+	• Added range selection and quota checks for downloads
+    • Various minor design and code improvements
+
 
 changelog: version 0.9
     • Fixed error when trying to draw a bounding box without the AOI selected
