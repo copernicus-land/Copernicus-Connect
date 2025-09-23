@@ -296,6 +296,34 @@ class DownloadWorker(QRunnable):
 
 
 class UiForm(QMainWindow):
+    def get_max_downloads_left(self):
+        """
+        Returns (max_allowed, downloads_last_hour) for WEkEO download limit (100 per hour)
+        """
+        import datetime
+        from pathlib import Path
+        pathfile = Path.home() / ".hda_download_status"
+        now = datetime.datetime.now()
+        one_hour_ago = now - datetime.timedelta(hours=1)
+        downloads_last_hour = 0
+        if pathfile.is_file():
+            try:
+                with open(pathfile, 'r') as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) == 2:
+                            ts_str, count_str = parts
+                            try:
+                                ts = datetime.datetime.fromisoformat(ts_str)
+                                count = int(count_str)
+                                if ts > one_hour_ago:
+                                    downloads_last_hour += count
+                            except Exception:
+                                continue
+            except Exception:
+                pass
+        max_allowed = max(0, 100 - downloads_last_hour)
+        return max_allowed, downloads_last_hour
     def __init__(self, client, parent=None):
         super().__init__(parent)
         uic.loadUi(UI_PATH, self)
@@ -671,11 +699,16 @@ class UiForm(QMainWindow):
 
     
     def select_all_items(self):
+        max_allowed, downloads_last_hour = self.get_max_downloads_left()
         count = self.fileListWidget.count()
-        if count > 100:
-            QMessageBox.warning(self, "Too many files", "WEkEO only supports 100 downloads per hour. Only the first 100 files will be selected.")
+        if count > max_allowed:
+            QMessageBox.warning(
+                self,
+                "Too many files",
+                f"WEkEO only supports 100 downloads per hour. Only the first {max_allowed} files will be selected. You have already downloaded {downloads_last_hour} files in the last hour."
+            )
             self.fileListWidget.clearSelection()
-            for i in range(100):
+            for i in range(max_allowed):
                 item = self.fileListWidget.item(i)
                 item.setSelected(True)
         else:
@@ -704,29 +737,7 @@ class UiForm(QMainWindow):
             if from_idx > to_idx:
                 from_idx, to_idx = to_idx, from_idx
 
-            # Calculate dynamic max downloads left
-            import datetime
-            pathfile = Path.home() / ".hda_download_status"
-            now = datetime.datetime.now()
-            one_hour_ago = now - datetime.timedelta(hours=1)
-            downloads_last_hour = 0
-            if pathfile.is_file():
-                try:
-                    with open(pathfile, 'r') as f:
-                        for line in f:
-                            parts = line.strip().split()
-                            if len(parts) == 2:
-                                ts_str, count_str = parts
-                                try:
-                                    ts = datetime.datetime.fromisoformat(ts_str)
-                                    count = int(count_str)
-                                    if ts > one_hour_ago:
-                                        downloads_last_hour += count
-                                except Exception:
-                                    continue
-                except Exception:
-                    pass
-            max_allowed = max(0, 100 - downloads_last_hour)
+            max_allowed, downloads_last_hour = self.get_max_downloads_left()
             interval_size = to_idx - from_idx + 1
             if interval_size > max_allowed:
                 QMessageBox.warning(
@@ -1687,6 +1698,15 @@ class UiForm(QMainWindow):
 
         if not selected_ids:
             QMessageBox.information(self, "No selection", "Please select at least one file to download.")
+            return
+
+        max_allowed, downloads_last_hour = self.get_max_downloads_left()
+        if len(selected_ids) > max_allowed:
+            QMessageBox.warning(
+                self,
+                "Download limit exceeded",
+                f"You can only download {max_allowed} more files right now. WEkEO only supports 100 downloads per hour. You have already downloaded {downloads_last_hour} files in the last hour."
+            )
             return
 
         out_dir = self.get_download_path()
