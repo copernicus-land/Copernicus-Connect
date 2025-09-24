@@ -2,11 +2,12 @@
 name=Copernicus Connect
 qgisMinimumVersion=3.0
 version=0.10
-experimental = False
-deprecated = False
-homepage = https://land.copernicus.eu
-tracker = https://github.com/copernicus-land/Copernicus-Connect/issues
-repository = https://github.com/copernicus-land/Copernicus-Connect
+experimental=False
+deprecated=False
+homepage=https://land.copernicus.eu
+tracker=https://github.com/copernicus-land/Copernicus-Connect/issues
+repository=https://github.com/copernicus-land/Copernicus-Connect
+wiki=https://github.com/copernicus-land/Copernicus-Connect/wiki
 category=Data Retrieval
 icon=resources/icon.png
 license=EUPL 1.2 or later
@@ -16,26 +17,21 @@ email=mikael.lund@eea.europa.eu
 description=Easy browse, download, and visualise Copernicus data into your QGIS.
 about=Copernicus Connect provides a graphical interface for discovering, querying, and downloading datasets from the WEkEO platform via the Harmonized Data Access (HDA) API. It also enables integration of WMS and WMTS services into QGIS.
    
-    The plugin, install requires Python packages: hda (Apache 2.0), owslib>=0.31.0 (BSD). If something fails, see the readme <a href="https://github.com/copernicus-land/Copernicus-Connect" target="_blank">plugin-guide</a>
+ The plugin, install requires Python packages: hda (Apache 2.0), owslib>=0.31.0 (BSD). If something fails, see the readme <a href="https://github.com/copernicus-land/Copernicus-Connect" target="_blank">plugin-guide</a>
 
 
-changelog: version 0.10
-	• Fixed an issue where existing WMS layers for Sentinel were not displayed
-	• Added a direct link to the manual on the GitHub Wiki
-	• Added range selection and quota checks for downloads
-    • Various minor design and code improvements
+changelog=
+ Version 0.10
+ * Fixed an issue where existing WMS layers for Sentinel were not displayed
+ * Added a direct link to the manual on the GitHub Wiki
+ * Added range selection and quota checks for downloads
+ * Various minor design and code improvements
 
-
-changelog: version 0.9
-    • Fixed error when trying to draw a bounding box without the AOI selected
-	• The text "Show API REquest(s)" change to "Show API Request(s)"
-	• UI width reduced
-	• Local timeout set on hda call
-	• Enabled editing in the text box and direct submission of the request.
-    • Fixed f-string backslash issue in main.py
-    • Fixed issue when login fails, and the plugin UI show nothing
-
-
-
-
-
+ version 0.9
+ * Fixed error when trying to draw a bounding box without the AOI selected
+ * The text "Show API REquest(s)" change to "Show API Request(s)"
+ * UI width reduced
+ * Local timeout set on hda call
+ * Enabled editing in the text box and direct submission of the request.
+ * Fixed f-string backslash issue in main.py
+ * Fixed issue when login fails, and the plugin UI show nothing
