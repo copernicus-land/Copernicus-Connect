@@ -14,6 +14,8 @@ You can download the plugin as a ZIP file and install it in QGIS via the Plugin 
 
 #### Workaround: Missing Icons in QGIS Menu on linux
 
+As a temporary workaround (for versions prior to v0.11), you can manually rename the files:
+
 mv ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/Copernicus-Connect/resources/icon.PNG \
    ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/Copernicus-Connect/resources/icon.png
 
