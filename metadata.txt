@@ -7,7 +7,6 @@ deprecated=False
 homepage=https://land.copernicus.eu
 tracker=https://github.com/copernicus-land/Copernicus-Connect/issues
 repository=https://github.com/copernicus-land/Copernicus-Connect
-wiki=https://github.com/copernicus-land/Copernicus-Connect/wiki
 category=Data Retrieval
 icon=resources/icon.png
 license=EUPL 1.2 or later
@@ -21,6 +20,9 @@ about=Copernicus Connect provides a graphical interface for discovering, queryin
 
 
 changelog=
+ Version 0.11
+ * Missing icon on Linux fixed
+
  Version 0.10
  * Fixed an issue where existing WMS layers for Sentinel were not displayed
  * Added a direct link to the manual on the GitHub Wiki
