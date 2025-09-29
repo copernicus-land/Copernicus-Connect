@@ -12,6 +12,16 @@ You can download the plugin as a ZIP file and install it in QGIS via the Plugin 
 2. In QGIS, go to **Plugins ▶ Manage and Install Plugins…**.
 3. Select the **Install from ZIP** tab, browse to the downloaded ZIP file, and click **Install Plugin**.
 
+#### Workaround: Missing Icons in QGIS Menu on linux
+
+mv ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/Copernicus-Connect/resources/icon.PNG \
+   ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/Copernicus-Connect/resources/icon.png
+
+mv ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/Copernicus-Connect/resources/icon/product_download.PNG \
+   ~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/Copernicus-Connect/resources/icon/product_download.png
+   
+The issue occurs because Linux enforces case sensitivity on filenames, whereas Windows does not.
+
 #### Workaround: Update credentials in `.hdarc`
 
 If you experience login issues, you can manually check and update the credentials stored in the hidden `.hdarc` file.
