@@ -22,6 +22,9 @@ about=Copernicus Connect provides a graphical interface for discovering, queryin
 changelog=
  Version 0.11
  * Missing icon on Linux fixed
+ * Fixed an issue where file extensions were incorrect.
+ * Increased the maximum downloads from 100 to 500 per hour.
+ * Improved the download cancellation process.
 
  Version 0.10
  * Fixed an issue where existing WMS layers for Sentinel were not displayed
