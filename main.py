@@ -1,6 +1,6 @@
 try:
-    from qgis.core import QgsMessageLog, Qgis, QgsRasterLayer, QgsProject
-    from qgis.utils import iface
+    from qgis.core import QgsMessageLog, Qgis, QgsRasterLayer, QgsProject # type: ignore
+    from qgis.utils import iface  # type: ignore
     from .user_dialog import UserDialog
     from .path_dialog import PathDialog
     from .limit_dialog import LimitDialog
@@ -48,6 +48,7 @@ import time
 import webbrowser
 import platform
 import subprocess
+import threading
 from pathlib import Path
 from urllib.parse import urlencode
 from collections import defaultdict
@@ -59,7 +60,7 @@ from PyQt5.QtWidgets import (
 
 )
 from PyQt5.QtCore import (QObject, QRunnable, pyqtSignal, pyqtSlot, QThreadPool, QDateTime, Qt, QStringListModel, QModelIndex, QTimer)
-from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeout
+from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeout, CancelledError
 import traceback
 from PyQt5.QtGui import QIntValidator, QStandardItemModel, QStandardItem, QIcon, QPixmap, QClipboard
 from hda import Client, Configuration
@@ -212,7 +213,10 @@ class DownloadWorker(QRunnable):
         self.selected_ids = selected_ids
         self.out_dir = out_dir
         self.cancelled = False
+        self.started_downloads = 0
+        self.completed_downloads = 0
         self.signals = DownloadWorkerSignals()
+        self._counter_lock = threading.Lock()
         
     def cancel(self):
         self.cancelled = True
@@ -221,10 +225,10 @@ class DownloadWorker(QRunnable):
     def run(self):
         try:
             downloaded = 0
-            total = len(self.selected_ids)
             futures = []
+            executor = ThreadPoolExecutor(max_workers=4)
 
-            with ThreadPoolExecutor(max_workers=4) as executor:
+            try:
                 for match in self.matches:
                     if self.cancelled:
                         self.signals.status.emit("Download cancelled.")
@@ -232,20 +236,39 @@ class DownloadWorker(QRunnable):
                     feature_id = match.results[0]['id']
                     if feature_id in self.selected_ids:
                         self.signals.status.emit(f"Downloading {feature_id}...")
-                        futures.append(
-                            executor.submit(self.download_file, match)
-                        )
+                        futures.append(executor.submit(self.download_file, match))
+
+                total = len(futures)
+
                 for future in as_completed(futures):
+                    if self.cancelled:
+                        break
                     try:
-                        result = future.result()
+                        future.result()
                         downloaded += 1
-                        progress = int((downloaded / total) * 100)
-                        self.signals.progress.emit(progress)
+                        if total:
+                            progress = int((downloaded / total) * 100)
+                            self.signals.progress.emit(progress)
+                    except CancelledError:
+                        self.signals.status.emit("Download cancelled.")
+                        return
                     except Exception as e:
                         tb = traceback.format_exc()
                         self.signals.error.emit(f"Error during download: {e}\n\n{tb}")
+            finally:
+                self.completed_downloads = downloaded
+                try:
+                    executor.shutdown(wait=False, cancel_futures=True)
+                except TypeError:
+                    executor.shutdown(wait=False)
+                    for f in futures:
+                        f.cancel()
 
-            self.signals.status.emit("Download finished.")
+            if self.cancelled:
+                self.signals.status.emit("Download cancelled.")
+            else:
+                self.signals.status.emit("Download finished.")
+
             self.signals.finished.emit()
 
         except Exception as e:
@@ -255,8 +278,12 @@ class DownloadWorker(QRunnable):
     def download_file(self, match):
         url = match.get_download_urls()[0]
         file_id = match.results[0]['id']
-        destination_path = os.path.join(str(self.out_dir), f"{file_id}.zip")
+        location = match.results[0].get("properties", {}).get("location", "")
+        extension = os.path.splitext(location)[1] or ".zip"
+        destination_path = os.path.join(str(self.out_dir), f"{file_id}{extension}")
         headers = {"Authorization": f"Bearer {self.client.token}"}
+        with self._counter_lock:
+            self.started_downloads += 1
 
         max_attempts = 3
 
@@ -298,7 +325,7 @@ class DownloadWorker(QRunnable):
 class UiForm(QMainWindow):
     def get_max_downloads_left(self):
         """
-        Returns (max_allowed, downloads_last_hour) for WEkEO download limit (100 per hour)
+        Returns (max_allowed, downloads_last_hour) for WEkEO download limit (500 per hour)
         """
         import datetime
         from pathlib import Path
@@ -322,7 +349,7 @@ class UiForm(QMainWindow):
                                 continue
             except Exception:
                 pass
-        max_allowed = max(0, 100 - downloads_last_hour)
+        max_allowed = max(0, 500 - downloads_last_hour)
         return max_allowed, downloads_last_hour
     def __init__(self, client, parent=None):
         super().__init__(parent)
@@ -705,7 +732,7 @@ class UiForm(QMainWindow):
             QMessageBox.warning(
                 self,
                 "Too many files",
-                f"WEkEO only supports 100 downloads per hour. Only the first {max_allowed} files will be selected. You have already downloaded {downloads_last_hour} files in the last hour."
+                f"WEkEO only supports 500 downloads per hour. Only the first {max_allowed} files will be selected. You have already downloaded {downloads_last_hour} files in the last hour."
             )
             self.fileListWidget.clearSelection()
             for i in range(max_allowed):
@@ -743,7 +770,7 @@ class UiForm(QMainWindow):
                 QMessageBox.warning(
                     self,
                     "Interval too large",
-                    f"It is not allowed to select more than {max_allowed} files at once. WEkEO only supports 100 downloads per hour. You have already downloaded {downloads_last_hour} files in the last hour."
+                    f"It is not allowed to select more than {max_allowed} files at once. WEkEO only supports 500 downloads per hour. You have already downloaded {downloads_last_hour} files in the last hour."
                 )
                 return
             self.fileListWidget.clearSelection()
@@ -760,12 +787,27 @@ class UiForm(QMainWindow):
             self.cancelButton.setEnabled(False)
 
     def download_finished(self):
-        if self.worker.cancelled:
+        completed = getattr(self.worker, "completed_downloads", 0) if self.worker else 0
+        started = getattr(self.worker, "started_downloads", 0) if self.worker else 0
+        in_progress_or_failed = max(0, started - completed)
+        self.save_download_status(completed)
+
+        if self.worker and self.worker.cancelled:
             self.statusLabel.setText("Status: Download cancelled.")
-            QMessageBox.information(self, "Cancelled", "Download was cancelled.")
+            QMessageBox.information(
+                self,
+                "Cancelled",
+                f"Download was cancelled. Completed: {completed}. Started but not finished: {in_progress_or_failed}."
+            )
+            self.progressBar.setValue(0)
+            self.statusLabel.setText("Status: Ready")
         else:
             self.statusLabel.setText("Status: Download complete.")
-            QMessageBox.information(self, "Download complete", "All selected files were downloaded.")
+            QMessageBox.information(
+                self,
+                "Download complete",
+                f"Completed: {completed}. Started but not finished: {in_progress_or_failed}."
+            )
 
         self.cancelButton.setEnabled(True)
         self.worker = None  
@@ -1648,7 +1690,7 @@ class UiForm(QMainWindow):
                 pass
             return None
         
-    def save_download_status(self, selected_ids):
+    def save_download_status(self, download_count):
         """
         Save the count and timestamp of downloads to a file, keeping only entries from the last hour.
         Each line: <timestamp_iso> <count>
@@ -1676,7 +1718,7 @@ class UiForm(QMainWindow):
             except Exception as e:
                 log_message(f"Could not read download status: {e}", "Copernicus Connect", "WARNING")
         # Add new entry
-        entries.append((now, len(selected_ids)))
+        entries.append((now, int(download_count)))
         # Write back only entries within last hour
         try:
             with open(pathfile, 'w') as f:
@@ -1705,7 +1747,7 @@ class UiForm(QMainWindow):
             QMessageBox.warning(
                 self,
                 "Download limit exceeded",
-                f"You can only download {max_allowed} more files right now. WEkEO only supports 100 downloads per hour. You have already downloaded {downloads_last_hour} files in the last hour."
+                f"You can only download {max_allowed} more files right now. WEkEO only supports 500 downloads per hour. You have already downloaded {downloads_last_hour} files in the last hour."
             )
             return
 
@@ -1728,9 +1770,7 @@ class UiForm(QMainWindow):
             self.worker.signals.progress.connect(self.progressBar.setValue)
             self.worker.signals.status.connect(lambda msg: self.statusLabel.setText(f"Status: {msg}"))
             self.worker.signals.error.connect(lambda err: QMessageBox.warning(self, "Error", err))
-            self.worker.signals.finished.connect(self.download_finished)      
-
-            self.save_download_status(selected_ids)
+            self.worker.signals.finished.connect(self.download_finished)     # type: ignore 
 
             QThreadPool.globalInstance().start(self.worker)
         except Exception as e:
