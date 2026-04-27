@@ -4,7 +4,8 @@ from urllib.parse import urlparse, urlunparse, urlencode, parse_qs, ParseResult
 
 from owslib.util import testXMLValue, Authentication, openURL
 from owslib.ows import ServiceIdentification, ServiceProvider, OperationsMetadata
-from xml.etree.ElementTree import Element, ElementTree, fromstring
+from defusedxml.ElementTree import fromstring as defused_fromstring
+from xml.etree.ElementTree import Element, ElementTree
 
 # Fallback-implementation af getXMLTree (for OWSLib < 0.33.0)
 def getXMLTree(xml):
@@ -18,7 +19,7 @@ def getXMLTree(xml):
         tree._setroot(xml)
         return tree
     elif isinstance(xml, str):
-        return ElementTree(fromstring(xml))
+        return ElementTree(defused_fromstring(xml))
     else:
         raise TypeError("Expecting an XML string or ElementTree object.")
 

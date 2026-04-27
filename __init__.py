@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QAction, QMessageBox
+from .qt_compat import QMessageBox
 import traceback
 
 def classFactory(iface):

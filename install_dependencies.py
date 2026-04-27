@@ -14,7 +14,8 @@ except ImportError:
 REQUIRED_PACKAGES = {
     "wheel": "",
     "hda": "",
-    "owslib": ""
+    "owslib": "",
+    "defusedxml": ""
 }
 
 _failed_packages = []  

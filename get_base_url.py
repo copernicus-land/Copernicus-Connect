@@ -2,6 +2,8 @@ import requests
 import re
 from urllib.parse import urlparse, urlunparse
 
+REQUEST_TIMEOUT = 60
+
 
 class GetBaseURL:
     BASE_URL = "https://moi-be.wekeo.eu/api/dataset"
@@ -85,7 +87,7 @@ class GetBaseURL:
         dataset_id = self.transform_dataset_id(dataset_id)
         url = f"{self.BASE_URL}/{dataset_id}"
         try:
-            response = requests.get(url)
+            response = requests.get(url, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
             return response.json()
         except Exception as e:

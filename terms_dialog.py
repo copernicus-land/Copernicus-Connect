@@ -36,6 +36,7 @@ except ImportError:
 
 TERMS_UI_PATH = os.path.join(os.path.dirname(__file__), "resources", "terms.ui")
 FORM_CLASS, _ = uic.loadUiType(TERMS_UI_PATH)
+REQUEST_TIMEOUT = 60
 
 class TermsDialog(QDialog, FORM_CLASS):
     def __init__(self, client, accept_term_id = None, parent=None):
@@ -128,7 +129,7 @@ class TermsDialog(QDialog, FORM_CLASS):
                     "accept": "application/json"
                 }
 
-                response = requests.delete(url, headers=headers)
+                response = requests.delete(url, headers=headers, timeout=REQUEST_TIMEOUT)
                 response.raise_for_status()  
 
             except Exception as e:

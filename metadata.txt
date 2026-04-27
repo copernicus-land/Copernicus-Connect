@@ -2,7 +2,7 @@
 name=Copernicus Connect
 qgisMinimumVersion=3.0
 qgisMaximumVersion=4.99
-version=0.12
+version=0.13
 experimental=False
 deprecated=False
 homepage=https://land.copernicus.eu
@@ -21,6 +21,9 @@ about=Copernicus Connect provides a graphical interface for discovering, queryin
 
 
 changelog=
+ Version 0.13
+ * Added Security hardening.
+
  Version 0.12
  * Updated the code to also support QGIS 4.x.
 
