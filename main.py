@@ -11,6 +11,18 @@ try:
     from .terms_dialog import TermsDialog
     from .loading_overlay import LoadingOverlay
     running_in_qgis = True
+
+    def _alias_qgis_enum(legacy_name, enum_name):
+        if hasattr(Qgis, legacy_name):
+            return
+        enum_cls = getattr(Qgis, enum_name, None)
+        value = getattr(enum_cls, legacy_name, None) if enum_cls is not None else None
+        if value is not None:
+            setattr(Qgis, legacy_name, value)
+
+    for _message_level in ("Info", "Warning", "Critical", "Success"):
+        _alias_qgis_enum(_message_level, "MessageLevel")
+
     def log_message(msg, tag="Copernicus Connect", level="INFO"):
         level_str = level.upper() if isinstance(level, str) else "INFO"
         qgis_level = {
@@ -53,17 +65,94 @@ from pathlib import Path
 from urllib.parse import urlencode
 from collections import defaultdict
 from io import BytesIO
-from PyQt5 import uic
-from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QComboBox, QDateTimeEdit, QStyle, QVBoxLayout, QTextEdit, QPushButton, QDialogButtonBox, 
-    QLineEdit, QLabel, QDialog, QMessageBox, QListWidget, QListWidgetItem, QDockWidget, QToolButton, QHBoxLayout, QWidget, QSizePolicy
-
-)
-from PyQt5.QtCore import (QObject, QRunnable, pyqtSignal, pyqtSlot, QThreadPool, QDateTime, Qt, QStringListModel, QModelIndex, QTimer)
 from concurrent.futures import ThreadPoolExecutor, as_completed, TimeoutError as FuturesTimeout, CancelledError
 import traceback
-from PyQt5.QtGui import QIntValidator, QStandardItemModel, QStandardItem, QIcon, QPixmap, QClipboard
 from hda import Client, Configuration
+
+try:
+    from .qt_compat import (
+        QApplication,
+        QClipboard,
+        QComboBox,
+        QDateTime,
+        QDateTimeEdit,
+        QDialog,
+        QDialogButtonBox,
+        QDockWidget,
+        QHBoxLayout,
+        QIcon,
+        QIntValidator,
+        QLabel,
+        QLineEdit,
+        QListWidget,
+        QListWidgetItem,
+        QMainWindow,
+        QMessageBox,
+        QModelIndex,
+        QObject,
+        QPixmap,
+        QPushButton,
+        QRunnable,
+        QSizePolicy,
+        QStandardItem,
+        QStandardItemModel,
+        QStringListModel,
+        QStyle,
+        QTextEdit,
+        QThreadPool,
+        QTimer,
+        QToolButton,
+        Qt,
+        QVBoxLayout,
+        QWidget,
+        exec_application,
+        exec_dialog,
+        pyqtSignal,
+        pyqtSlot,
+        uic,
+    )
+except ImportError:
+    from qt_compat import (
+        QApplication,
+        QClipboard,
+        QComboBox,
+        QDateTime,
+        QDateTimeEdit,
+        QDialog,
+        QDialogButtonBox,
+        QDockWidget,
+        QHBoxLayout,
+        QIcon,
+        QIntValidator,
+        QLabel,
+        QLineEdit,
+        QListWidget,
+        QListWidgetItem,
+        QMainWindow,
+        QMessageBox,
+        QModelIndex,
+        QObject,
+        QPixmap,
+        QPushButton,
+        QRunnable,
+        QSizePolicy,
+        QStandardItem,
+        QStandardItemModel,
+        QStringListModel,
+        QStyle,
+        QTextEdit,
+        QThreadPool,
+        QTimer,
+        QToolButton,
+        Qt,
+        QVBoxLayout,
+        QWidget,
+        exec_application,
+        exec_dialog,
+        pyqtSignal,
+        pyqtSlot,
+        uic,
+    )
 
 
 UI_PATH = os.path.join(os.path.dirname(__file__), "resources", "form.ui")
@@ -127,12 +216,6 @@ def build_field_definitions(queryable_dict):
 
     return fields
 
-from PyQt5.QtCore import QDateTime
-from PyQt5.QtWidgets import (
-    QWidget, QLineEdit, QToolButton, QDialog,
-    QDialogButtonBox, QVBoxLayout, QHBoxLayout, QDateTimeEdit
-)
-
 class NullableDateTimeInput(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -180,7 +263,7 @@ class NullableDateTimeInput(QWidget):
         vlayout.addWidget(buttons)
 
         # 4) Run the dialog
-        if dlg.exec_() == QDialog.Accepted:
+        if exec_dialog(dlg) == QDialog.Accepted:
             chosen = dtedit.dateTime()
             self.line.setText(chosen.toString("yyyy-MM-ddTHH:mm:ss"))
         # If Cancel, do nothing — leave the field as it was
@@ -473,7 +556,7 @@ class UiForm(QMainWindow):
     def open_terms_dialog(self, term_id = None):
         try:
             dialog = TermsDialog(self.client, term_id, self)
-            if dialog.exec_():
+            if exec_dialog(dialog):
                 print("Terms saved.")
             else:
                 print("Cancelled.")
@@ -1305,7 +1388,7 @@ class UiForm(QMainWindow):
         run_button.clicked.connect(lambda: self.run_query_from_json_text(text_edit.toPlainText(), parent_dialog=dialog))
         close_button.clicked.connect(dialog.reject)
 
-        dialog.exec_()
+        exec_dialog(dialog)
 
     def copy_to_clipboard(self, text):
         clipboard = QApplication.clipboard()
@@ -1335,7 +1418,7 @@ class UiForm(QMainWindow):
         run_button.clicked.connect(lambda: self.run_query_from_json_text(text_edit.toPlainText(), parent_dialog=dialog))
         cancel_button.clicked.connect(dialog.reject)
 
-        dialog.exec_()
+        exec_dialog(dialog)
 
     def _set_current_dataset(self, dataset_id):
         """Try to select the dataset in the combo by dataset_id. Returns True if found."""
@@ -1656,7 +1739,7 @@ class UiForm(QMainWindow):
 
     def show_path_settings(self):    
         dialog = PathDialog(self)
-        result = dialog.exec_()
+        result = exec_dialog(dialog)
         if result == QDialog.Accepted:
             print("Path saved.")
         else:
@@ -1664,7 +1747,7 @@ class UiForm(QMainWindow):
 
     def open_limit_dialog(self):
         dialog = LimitDialog(self)
-        if dialog.exec_():
+        if exec_dialog(dialog):
             QMessageBox.information(self, "Limit Saved", "New search limit has been saved.")
 
     def check_term(self, term):
@@ -1779,7 +1862,7 @@ class UiForm(QMainWindow):
 
 def get_user_credentials(parent=None):
     dialog = UserDialog(parent)
-    result = dialog.exec_()
+    result = exec_dialog(dialog)
     return result == QDialog.Accepted
 
 def read_credentials():
@@ -1801,8 +1884,6 @@ def read_credentials():
         return None, None
 
     return username, password
-
-from PyQt5.QtWidgets import QApplication, QMessageBox
 
 def launch_form(parent=None):
     # Ensure there's a QApplication when running outside QGIS
@@ -1889,7 +1970,6 @@ def launch_form(parent=None):
 
 
 if __name__ == "__main__":
-    from PyQt5.QtWidgets import QApplication
     import sys
 
     app = QApplication.instance() or QApplication(sys.argv)
@@ -1900,4 +1980,4 @@ if __name__ == "__main__":
         sys.exit(0)
 
     form.show()  # <- VIGTIGT i standalone
-    sys.exit(app.exec_())
+    sys.exit(exec_application(app))

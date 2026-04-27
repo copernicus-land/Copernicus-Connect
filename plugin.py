@@ -1,8 +1,7 @@
 import os
-from PyQt5.QtCore import QObject, Qt
-from PyQt5.QtWidgets import QAction
-from PyQt5.QtGui import QIcon
 from qgis.gui import QgsDockWidget
+
+from .qt_compat import QAction, QIcon, QObject, Qt
 
 
 class CopernicusConnectPlugin(QObject):

@@ -1,8 +1,10 @@
 import os
 from pathlib import Path
-from PyQt5 import uic
-from PyQt5.QtWidgets import QDialog, QFileDialog, QStyle
-from PyQt5.QtGui import QIcon
+
+try:
+    from .qt_compat import QDialog, QFileDialog, QIcon, QStyle, uic
+except ImportError:
+    from qt_compat import QDialog, QFileDialog, QIcon, QStyle, uic
 
 PATH_UI_PATH = os.path.join(os.path.dirname(__file__), "resources", "path_dialog.ui")
 

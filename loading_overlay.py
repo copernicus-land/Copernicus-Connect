@@ -1,7 +1,9 @@
-from PyQt5.QtWidgets import QWidget, QLabel, QVBoxLayout
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QPixmap, QColor, QPalette
 import os
+
+try:
+    from .qt_compat import QColor, QLabel, QPalette, QPixmap, QSize, Qt, QVBoxLayout, QWidget
+except ImportError:
+    from qt_compat import QColor, QLabel, QPalette, QPixmap, QSize, Qt, QVBoxLayout, QWidget
 
 class LoadingOverlay(QWidget):
     def __init__(self, parent=None, message="Loading..."):

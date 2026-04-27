@@ -1,10 +1,38 @@
-from PyQt5.QtWidgets import (
-    QDialog, QVBoxLayout, QLabel, QCheckBox, QPushButton,
-    QMessageBox, QDialogButtonBox, QWidget, QTextBrowser, QHBoxLayout, QStyle
-)
-from PyQt5 import uic
 import os
 import requests
+
+try:
+    from .qt_compat import (
+        QCheckBox,
+        QDialog,
+        QDialogButtonBox,
+        QHBoxLayout,
+        QLabel,
+        QMessageBox,
+        QPushButton,
+        QStyle,
+        QTextBrowser,
+        QVBoxLayout,
+        QWidget,
+        exec_dialog,
+        uic,
+    )
+except ImportError:
+    from qt_compat import (
+        QCheckBox,
+        QDialog,
+        QDialogButtonBox,
+        QHBoxLayout,
+        QLabel,
+        QMessageBox,
+        QPushButton,
+        QStyle,
+        QTextBrowser,
+        QVBoxLayout,
+        QWidget,
+        exec_dialog,
+        uic,
+    )
 
 TERMS_UI_PATH = os.path.join(os.path.dirname(__file__), "resources", "terms.ui")
 FORM_CLASS, _ = uic.loadUiType(TERMS_UI_PATH)
@@ -122,4 +150,4 @@ class TermsDialog(QDialog, FORM_CLASS):
         button_box.accepted.connect(dialog.accept)
         layout.addWidget(button_box)
 
-        dialog.exec_()
+        exec_dialog(dialog)

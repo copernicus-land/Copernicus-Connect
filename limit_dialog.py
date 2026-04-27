@@ -1,8 +1,10 @@
 import os
 from pathlib import Path
-from PyQt5 import uic
-from PyQt5.QtWidgets import QDialog, QMessageBox, QStyle
-from PyQt5.QtGui import QIntValidator, QIcon
+
+try:
+    from .qt_compat import QDialog, QIcon, QIntValidator, QMessageBox, QStyle, uic
+except ImportError:
+    from qt_compat import QDialog, QIcon, QIntValidator, QMessageBox, QStyle, uic
 
 LIMIT_UI_PATH = os.path.join(os.path.dirname(__file__), "resources", "limit_dialog.ui")
 

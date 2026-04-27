@@ -1,10 +1,10 @@
 import os
 from pathlib import Path
-from PyQt5 import uic
-from PyQt5.QtGui import QIcon
-from PyQt5.QtWidgets import (
-    QDialog, QMessageBox, QStyle, QLineEdit
-)
+
+try:
+    from .qt_compat import QDialog, QIcon, QLineEdit, QMessageBox, QStyle, uic
+except ImportError:
+    from qt_compat import QDialog, QIcon, QLineEdit, QMessageBox, QStyle, uic
 
 USER_UI_PATH = os.path.join(os.path.dirname(__file__), "resources", "user_dialog.ui")
 FORM_CLASS, _ = uic.loadUiType(USER_UI_PATH)

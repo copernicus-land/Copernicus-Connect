@@ -1,8 +1,6 @@
 from qgis.gui import QgsMapToolEmitPoint, QgsRubberBand
-from PyQt5.QtGui import QColor
-from PyQt5.QtCore import Qt
-from qgis.PyQt.QtWidgets import QMessageBox
 from qgis.core import (
+    Qgis,
     QgsWkbTypes,
     QgsRectangle,
     QgsPointXY,
@@ -17,6 +15,16 @@ from qgis.core import (
 
 )
 
+try:
+    from ..qt_compat import QColor, QMessageBox, Qt
+except ImportError:
+    from qt_compat import QColor, QMessageBox, Qt
+
+
+POLYGON_GEOMETRY = getattr(QgsWkbTypes, "PolygonGeometry", None)
+if POLYGON_GEOMETRY is None:
+    POLYGON_GEOMETRY = Qgis.GeometryType.Polygon
+
 class RectangleMapTool(QgsMapToolEmitPoint):
     def __init__(self, canvas, dlg):
         super().__init__(canvas)
@@ -30,7 +38,7 @@ class RectangleMapTool(QgsMapToolEmitPoint):
         self.aoi_layer = None
 
         # Opret og tilføj rubberband (midlertidig visning)
-        self.rubberBand = QgsRubberBand(self.canvas, QgsWkbTypes.PolygonGeometry)
+        self.rubberBand = QgsRubberBand(self.canvas, POLYGON_GEOMETRY)
         self.rubberBand.setColor(QColor(0, 0, 255))
         self.rubberBand.setFillColor(QColor(0, 0, 255, 50))  # blå og transparent
         self.rubberBand.setBrushStyle(Qt.SolidPattern)
@@ -68,7 +76,7 @@ class RectangleMapTool(QgsMapToolEmitPoint):
         self.startPoint = self.toMapCoordinates(e.pos())
         self.endPoint = self.startPoint
         self.isEmittingPoint = True
-        self.rubberBand.reset(QgsWkbTypes.PolygonGeometry)
+        self.rubberBand.reset(POLYGON_GEOMETRY)
         self.rubberBand.show()
 
     def canvasMoveEvent(self, e):
@@ -106,7 +114,7 @@ class RectangleMapTool(QgsMapToolEmitPoint):
 
 
     def showRect(self, startPoint, endPoint):
-        self.rubberBand.reset(QgsWkbTypes.PolygonGeometry)
+        self.rubberBand.reset(POLYGON_GEOMETRY)
         if startPoint.x() == endPoint.x() or startPoint.y() == endPoint.y():
             return
 

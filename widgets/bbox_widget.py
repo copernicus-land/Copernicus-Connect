@@ -1,9 +1,31 @@
 try:
-    from qgis.PyQt.QtWidgets import (
-        QWidget, QDoubleSpinBox, QLabel, QGridLayout, QPushButton,
-        QVBoxLayout, QMessageBox, QComboBox, QHBoxLayout
+    from ..qt_compat import (
+        QComboBox,
+        QDoubleSpinBox,
+        QGridLayout,
+        QHBoxLayout,
+        QLabel,
+        QMessageBox,
+        QPushButton,
+        Qt,
+        QVBoxLayout,
+        QWidget,
     )
-    from qgis.PyQt.QtCore import Qt
+except ImportError:
+    from qt_compat import (
+        QComboBox,
+        QDoubleSpinBox,
+        QGridLayout,
+        QHBoxLayout,
+        QLabel,
+        QMessageBox,
+        QPushButton,
+        Qt,
+        QVBoxLayout,
+        QWidget,
+    )
+
+try:
     from qgis.core import (
         QgsProject,
         QgsCoordinateReferenceSystem,
@@ -13,11 +35,6 @@ try:
     )
     HAS_QGIS = True
 except ImportError:
-    from PyQt5.QtWidgets import (
-        QWidget, QDoubleSpinBox, QLabel, QGridLayout, QPushButton,
-        QVBoxLayout, QMessageBox, QComboBox, QHBoxLayout
-    )
-    from PyQt5.QtCore import Qt
     HAS_QGIS = False
 
 

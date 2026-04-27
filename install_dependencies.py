@@ -5,7 +5,11 @@ import importlib
 import platform
 import subprocess
 import os
-from PyQt5.QtWidgets import QMessageBox
+
+try:
+    from .qt_compat import QMessageBox, exec_dialog
+except ImportError:
+    from qt_compat import QMessageBox, exec_dialog
 
 REQUIRED_PACKAGES = {
     "wheel": "",
@@ -121,7 +125,7 @@ def _show_error_dialog(package_spec, iface, exception):
 
     open_console_btn = msg.addButton("Open Python Console", QMessageBox.ActionRole)
     msg.addButton(QMessageBox.Close)
-    msg.exec_()
+    exec_dialog(msg)
 
     if iface and msg.clickedButton() == open_console_btn:
         iface.actionShowPythonDialog().trigger()
@@ -138,4 +142,4 @@ def _show_summary_dialog(iface=None):
     summary.setText("The following packages could not be installed:")
     summary.setDetailedText(failed_list)
     summary.addButton(QMessageBox.Ok)
-    summary.exec_()
+    exec_dialog(summary)
